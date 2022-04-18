@@ -3,33 +3,36 @@ module i2c_master(
     input   clk,
     input   rst,
     input   [6:0] addr,
-    input   [7:0] data,
+    input   [7:0] data0,data1,data2,data3,data4,
     input rw,
     inout  sda,
     inout  scl
 );
 reg[3:0] Q,Q_next;
-reg [3:0] counter;
-wire [7:0] mem[0:3] ;
+reg [3:0] counter, counter_byte,counter_data_read;
+wire [7:0] mem_in[0:4]; // tranfer data from master to slave
+reg [7:0] mem_out [0:3]; // tranfer data from master to slave
 wire sclk,clk_en;
-reg sda_o,sda_i;
+reg sda_o;
 reg scl_en,scl_idle,sta_sto;
 reg i2c_done =0;
-reg ready;
+reg ready = 0;
 reg [7:0] data_out = 0 ;
 reg [7:0] data_addr_rw ;
-//assign mem = {data1,data2,data3,data4};
+reg data_read_inval;
+reg [3:0] cnt;
+assign mem_in = {data0,data1,data2,data3,data4};
 localparam  [3:0]   
-                    state_idle = 1,
-                    state_start = 2,
-                    state_addr = 3,
-                    state_RW = 4,
-                    state_NA = 5,
-                    state_data_w = 6,
-                    state_NA_w = 7, 
-                    state_data_r =8,
-                    state_NA_r = 9,
-                    state_stop = 10;
+                    IDLE = 1,
+                    START = 2,
+                    ADDR = 3,           // tranfer address and bit read/wrtite
+                    READ_ACK = 4,       //ACK address
+                    WRITE_DATA = 5,     // data from master to slave
+                    READ_ACK_DATA = 6,  // ACK data from master to slave
+                    READ_DATA = 7,      // data from slave to master
+                    WRITE_ACK = 8,      // ACK data from slave to master
+                    SR = 9,             // repeat start
+                    STOP = 10;
 div_clk #(.m(249),.n(10)) uut(
     .clk(clk),
     .rst(rst),
@@ -51,7 +54,7 @@ always_ff @(negedge sclk or negedge rst)
 begin
         if(~rst)
             begin
-                Q<=state_idle;
+                Q<=IDLE;
             end
         else
             begin
@@ -60,84 +63,88 @@ begin
 end
 always_comb
     case(Q)
-            state_idle: 
+            IDLE: 
                     begin // 1
-                        Q_next = state_start;
+                        Q_next = START;
                         sda_o = 1'b1;
                         scl_idle = 1'b1;
                         data_addr_rw = {addr,rw};
                     end
-            state_start: 
+            START: 
                     begin//2
-                        Q_next = state_addr;
+                        Q_next = ADDR;
                         sda_o = 1'b0;
+                        ready = 1;
 
                     end
-            state_addr : 
+            ADDR : 
                     begin //3
                         sda_o = data_addr_rw[counter];
                         if(counter==0)  
                             begin                            
-                            Q_next = state_RW;
+                            Q_next = READ_ACK;
                             end
                     end
-            state_RW ://4
+            READ_ACK ://4
                     begin
                         if((rw==0) && (sda ==0)) 
                             begin
-                                Q_next = state_data_w; 
+                                Q_next = WRITE_DATA; 
                             end
                         else if ((rw==1) && (sda ==0)) 
                             begin
-                                Q_next = state_data_r;
+                                Q_next = READ_DATA;
                             end
                         else 
                             begin
-                                Q_next = state_stop;
+                                Q_next = STOP;
                             end
                     end            
-            state_data_w : //6
+            WRITE_DATA : //5
                         begin 
-                            sda_o = data[counter];
+                            sda_o = mem_in[counter_byte][counter];
                             if(counter == 0)
                                 begin
-                                    Q_next = state_NA_w;
+                                    Q_next = READ_ACK_DATA;
                                 end
                                 
                         end
-            state_NA_w ://7
+            READ_ACK_DATA ://6
                         begin 
-                            if(sda== 1'b0)
+                            if((sda== 1'b1) && (counter_byte ==0))
                             begin
-                                Q_next = state_idle; 
+                                Q_next = IDLE; 
+                            end
+                            else if  (counter_byte !=0)
+                            begin
+                                Q_next = WRITE_DATA;
                             end
                             else 
-                            begin
-                                Q_next = state_stop;
-                            end
+                                Q_next = STOP;
                         end   
-            state_data_r ://8
+            READ_DATA ://7
                         begin 
-                            data_out[counter] = sda;
+                            mem_out[counter_data_read][counter] = sda;
                             if(counter==0)
                                 begin
-                                    Q_next = state_NA_r;
+                                    Q_next = WRITE_ACK;
                                 end
                         end
-            state_NA_r ://9
+            WRITE_ACK ://8
                         begin 
-                            if(sda)
+                            if(counter_data_read == 0)
                             begin
-                                Q_next = state_stop;
+                                Q_next = STOP;
+                                sda_o = 1'b0;
                             end
                             else 
-                                Q_next = state_data_r;
+                                Q_next = READ_DATA;
                         end
-            state_stop : //10
+            STOP : //9
                         begin 
                             sda_o = 1'b0;
                             i2c_done =1;
-                            Q_next = state_idle;
+                            Q_next = IDLE;
                         end
 
         endcase
@@ -146,28 +153,47 @@ always_comb
 
 always_ff @(negedge sclk) 
       case(Q)
-                    state_start :begin 
+                    START :begin 
                                     counter <= 7;
+                                    counter_byte <=0;
+                                    counter_data_read <=0;
+                                    data_read_inval <=0;
                                 end
-                    state_addr : 
+                    ADDR : 
                                 begin 
                                     counter <= counter-1; 
                                 end
-                    state_RW : 
+                    READ_ACK : 
                                 begin
                                      counter <= 7;
+                                     counter_byte <= 4;
+                                     counter_data_read <= 4;
+                                     cnt <= 0;
                                  end
-                    state_data_w :
+                    WRITE_DATA :
                                 begin 
                                     counter <= counter -1;
                                 end
-                    state_data_w:
+                    READ_DATA:
                                 begin 
                                     counter <= counter -1;
+                                    cnt <= cnt +1;
+                                    if(cnt==7)
+                                        data_read_inval <= 1;
+                                    else 
+                                        data_read_inval <= 0;
                                 end
-                    state_NA_w : 
+                    WRITE_ACK : begin
+                                    counter_data_read <= counter_data_read -1;
+                                    counter <= 7;
+                                end
+                    READ_ACK_DATA : 
                                 begin
                                     counter <= 7;
+                                    if((counter_byte > 4) || (counter < 0))
+                                    counter_byte <= 4;
+                                    else
+                                    counter_byte <= counter_byte -1;
                                 end
                     default : 
                                 begin 
@@ -179,42 +205,39 @@ always_ff @(negedge sclk)
 always_comb 
 begin
     case(Q)
-        state_idle : 
+        IDLE : 
                 begin 
                     scl_en = scl_idle; 
                 end
-        state_start : 
+        START : 
                 begin 
                     scl_en = ~ sta_sto; 
                 end
-        state_addr : 
+        ADDR : 
                 begin 
                     scl_en = sta_sto; 
                 end
-        state_RW : 
+        READ_ACK : 
                 begin 
                     scl_en = sta_sto;
-                    sda_i = sda; 
                 end
-        state_data_w : 
+        WRITE_DATA : 
                 begin 
                     scl_en = sta_sto; 
                 end
-        state_NA_w : 
-                begin 
-                    scl_en = sta_sto; 
-                    sda_i = sda;
-                end
-        state_data_r : 
+        READ_ACK_DATA : 
                 begin 
                     scl_en = sta_sto; 
                 end
-        state_NA_r : 
+        READ_DATA : 
                 begin 
                     scl_en = sta_sto; 
-                    sda_i = sda;
                 end
-        state_stop : 
+        WRITE_ACK : 
+                begin 
+                    scl_en = sta_sto; 
+                end
+        STOP : 
                 begin 
                     scl_en = ~ sta_sto; 
                 end
