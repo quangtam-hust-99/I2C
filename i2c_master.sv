@@ -132,12 +132,12 @@ always_comb
                         end
             WRITE_ACK_DATA ://8
                         begin 
-                            if(counter_byte == 0)
+                            if(counter_byte == 0) 
                             begin
                                 Q_next = STOP;
                                 sda_o = 1'b0;
                             end
-                            else 
+                            else if (counter ==0)
                             begin
                                 Q_next = READ_DATA;
                             end
@@ -179,19 +179,22 @@ always_ff @(negedge sclk)
                     WRITE_ACK_DATA :
                                 begin
                                     counter <= 7;
-                                    if((counter_byte > 4) || (counter < 0))
-                                    counter_byte <= 4;
+                                    if((counter_byte > 3) || (counter < 0))
+                                    counter_byte <= 3;
                                     else
                                     counter_byte <= counter_byte -1;
                                 end
                     READ_ACK_DATA : 
                                 begin
                                     counter <= 7;
-                                    if((counter_byte > 4) || (counter < 0))
-                                    counter_byte <= 4;
+                                    if((counter_byte > 3) || (counter < 0))
+                                    counter_byte <= 3;
                                     else
                                     counter_byte <= counter_byte -1;
                                 end
+                    STOP :  begin
+                                counter_byte <= 3;
+                            end
                     default : 
                                 begin 
                                     counter <=0 ;
