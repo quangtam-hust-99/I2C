@@ -144,7 +144,7 @@ always_comb
                         end
             STOP : //9
                         begin 
-                            sda_o = 1'b0;
+                            sda_o = 1'b1;
                             i2c_done =1;
                             Q_next = IDLE;
                         end
@@ -239,7 +239,7 @@ begin
                 end
         STOP : 
                 begin 
-                    scl_en = ~ sta_sto; 
+                    scl_en =  sda_o; 
                 end
     endcase
 end
