@@ -1,45 +1,51 @@
 
 module i2c_master(
-    input   clk,
-    input   rst,
-    input   [6:0] addr,
-    input   [7:0] data0,data1,data2,data3,data4,
-    input rw,
-    inout  sda,
-    inout  scl
+    input               clk         ,
+    input               rst         ,
+    input               i_ready     ,
+    input       [6:0]   addr        ,
+    input       [7:0]   data_in     ,
+    output  reg [7:0]   data_out    ,
+    input       [3:0]   data_cnt    ,
+    input               rw          ,
+    inout               sda         ,
+    inout               scl ,
+
+    output  wire             i_txff_rd   ,
+    output  wire             i_rxff_wr   
+    /*input   wire            i_txff_empty,
+    input   wire            i_rxff_full */
 );
-reg[3:0] Q,Q_next;
-reg [3:0] counter, counter_byte,counter_data_read;
-wire [7:0] mem_in[0:4]; // tranfer data from master to slave
-reg [7:0] mem_out [0:4]; // tranfer data from master to slave
-wire sclk,clk_en;
-reg sda_o;
-reg scl_en,scl_idle,sta_sto;
-reg i2c_done =0;
-reg ready = 0;
-//reg [7:0] data_out = 0 ;
+reg   [3:0]   Q,Q_next    ;
+reg   [3:0]   counter, counter_byte,counter_data_read;
+wire  [7:0]   mem_in  [0:4]   ;           // tranfer data from master to slave
+reg   [7:0]   mem_out [0:4]   ;            // tranfer data from master to slave
+wire          sclk,clk_en;
+reg           sda_o;
+reg           scl_en,scl_idle,sta_sto;
+
+
 reg [7:0] data_addr_rw ;
-reg data_read_inval;
 reg [3:0] cnt;
-assign mem_in = {data0,data1,data2,data3,data4};
+
 localparam  [3:0]   
-                    IDLE = 1,
-                    START = 2,
-                    ADDR = 3,           // tranfer address and bit read/wrtite
-                    READ_ACK = 4,       //ACK address
-                    WRITE_DATA = 5,     // data from master to slave
-                    READ_ACK_DATA = 6,  // ACK data from master to slave
-                    READ_DATA = 7,      // data from slave to master
-                    WRITE_ACK_DATA = 8,      // ACK data from slave to master
-                    SR = 9,             // repeat start
-                    STOP = 10;
+                    IDLE            = 1 ,
+                    START           = 2 ,
+                    ADDR            = 3 ,     // tranfer address and bit read/wrtite
+                    READ_ACK        = 4 ,     //ACK address
+                    WRITE_DATA      = 5 ,     // data from master to slave
+                    READ_ACK_DATA   = 6 ,     // ACK data from master to slave
+                    READ_DATA       = 7 ,     // data from slave to master
+                    WRITE_ACK_DATA  = 8 ,     // ACK data from slave to master
+                    SR              = 9 ,     // repeat start
+                    STOP            = 10;
 div_clk #(.m(249),.n(10)) uut(
     .clk(clk),
     .rst(rst),
     .clk_en(clk_en),
     .sclk(sclk)
 );
-always_ff @(negedge clk_en or negedge rst)
+always_ff @(posedge clk_en or negedge rst)
 begin
     if(~rst)
         begin
@@ -50,7 +56,7 @@ begin
             sta_sto <= ~ sta_sto;
         end
 end
-always_ff @(negedge sclk or negedge rst)
+always_ff @(posedge sclk or negedge rst)
 begin
         if(~rst)
             begin
@@ -62,30 +68,29 @@ begin
             end
 end
 always_comb
+begin
     case(Q)
-            IDLE: 
+            IDLE:
                     begin // 1
-                        Q_next = START;
-                        sda_o = 1'b1;
-                        scl_idle = 1'b1;
-                        data_addr_rw = {addr,rw};
+                        Q_next = START ;
+                        sda_o  = 1'b1  ;
+                        data_addr_rw = {addr,rw} ;
                     end
-            START: 
+            START:      
                     begin//2
-                        Q_next = ADDR;
-                        sda_o = 1'b0;
-                        ready = 1;
+                        Q_next = ADDR ;
+                        sda_o  = 1'b0 ;
 
                     end
-            ADDR : 
+            ADDR :      
                     begin //3
                         sda_o = data_addr_rw[counter];
-                        if(counter==0)  
+                        if(counter == 0)  
                             begin                            
                             Q_next = READ_ACK;
                             end
                     end
-            READ_ACK ://4
+            READ_ACK :     //4
                     begin
                         if((rw==0) && (sda ==0)) 
                             begin
@@ -100,149 +105,133 @@ always_comb
                                 Q_next = STOP;
                             end
                     end            
-            WRITE_DATA : //5
+            WRITE_DATA :      //5
                         begin 
-                            sda_o = mem_in[counter_byte][counter];
+                            sda_o = data_in[counter];
                             if(counter == 0)
                                 begin
                                     Q_next = READ_ACK_DATA;
                                 end
                                 
                         end
-            READ_ACK_DATA ://6
+            READ_ACK_DATA :     //6
                         begin 
-                            if((sda== 1'b1) && (counter_byte ==0))
-                            begin
-                                Q_next = IDLE; 
-                            end
-                            else if  (counter_byte !=0)
-                            begin
-                                Q_next = WRITE_DATA;
-                            end
+                            if(counter_byte > 0) 
+                                begin    
+                                    Q_next = WRITE_DATA;
+                                    
+                                end
                             else 
-                                Q_next = STOP;
+                                begin
+                                    Q_next = STOP ;
+                                end
                         end   
-            READ_DATA ://7
+            READ_DATA :     //7
                         begin 
-                            mem_out[counter_byte][counter] = sda;
-                            if(counter==0)
+                            data_out[counter] = sda;
+                            if(counter == 0)
                                 begin
                                     Q_next = WRITE_ACK_DATA;
                                 end
                         end
-            WRITE_ACK_DATA ://8
+            WRITE_ACK_DATA :     //8
                         begin 
-                            if(counter_byte == 0) 
-                            begin
-                                Q_next = STOP;
-                                sda_o = 1'b0;
-                            end
-                            else if (counter ==0)
-                            begin
-                                Q_next = READ_DATA;
-                            end
+                            if(counter_byte > 0) 
+                                begin  
+                                    Q_next = READ_DATA;  
+                                    
+                                end
+                            else 
+                                begin
+                                    Q_next = STOP ;
+                                    sda_o  = 1'b0 ;
+                                end
                         end
-            STOP : //9
+            STOP :      //9
                         begin 
-                            sda_o = 1'b1;
-                            i2c_done =1;
+                            sda_o = 1'b0;
                             Q_next = IDLE;
                         end
 
         endcase
             
+end
 
-
-always_ff @(negedge sclk) 
+always_ff @(posedge sclk) 
       case(Q)
-                    START :begin 
-                                    counter <= 7;
-                                    counter_byte <=0;
-                                end
+                    START :                     
+                        begin 
+                            counter <= 7             ;
+                            counter_byte <= data_cnt ;
+                        end
                     ADDR : 
-                                begin 
-                                    counter <= counter-1; 
-                                end
-                    READ_ACK : 
-                                begin
-                                     counter <= 7;
-                                     counter_byte <= 4;
-                                 end
+                       
+                        begin 
+                            counter <= counter-1 ; 
+                        end
+                    READ_ACK :
+                        
+                        begin
+                            counter <= 7             ;
+                            counter_byte <= data_cnt ;
+                        end
                     WRITE_DATA :
-                                begin 
-                                    counter <= counter -1;
-                                end
+                       
+                        begin 
+                            counter <= counter -1    ;
+                        end
                     READ_DATA:
-                                begin 
-                                    counter <= counter -1;
-                                end
+                       
+                        begin 
+                            counter <= counter -1    ;
+                        end
                     WRITE_ACK_DATA :
-                                begin
-                                    counter <= 7;
-                                    if((counter_byte > 3) || (counter < 0))
-                                    counter_byte <= 3;
-                                    else
-                                    counter_byte <= counter_byte -1;
-                                end
-                    READ_ACK_DATA : 
-                                begin
-                                    counter <= 7;
-                                    if((counter_byte > 3) || (counter < 0))
-                                    counter_byte <= 3;
-                                    else
-                                    counter_byte <= counter_byte -1;
-                                end
-                    STOP :  begin
-                                counter_byte <= 3;
-                            end
-                    default : 
-                                begin 
-                                    counter <=0 ;
-                                end
+                       
+                        begin
+                            counter <= 7 ;
+                            if((counter_byte > data_cnt) || (counter < 0))
+                                counter_byte <= data_cnt        ;
+                            else
+                                counter_byte <= counter_byte -1 ;
+                        end
+                    READ_ACK_DATA :
+                        
+                        begin
+                            counter <= 7;
+                            if((counter_byte > data_cnt) || (counter < 0))
+                                counter_byte <= data_cnt        ;
+                            else
+                                counter_byte <= counter_byte -1 ;
+                        end
+                    STOP :  
+                       
+                        begin
+                            counter_byte <= data_cnt ;
+                        end
+                    default :
+                        
+                        begin 
+                            counter <=0              ;
+                            counter_byte <= data_cnt ;
+                        end
                 endcase
-
-
 always_comb 
 begin
-    case(Q)
-        IDLE : 
-                begin 
-                    scl_en = scl_idle; 
-                end
-        START : 
-                begin 
-                    scl_en = ~ sta_sto; 
-                end
-        ADDR : 
-                begin 
-                    scl_en = sta_sto; 
-                end
-        READ_ACK : 
-                begin 
-                    scl_en = sta_sto;
-                end
-        WRITE_DATA : 
-                begin 
-                    scl_en = sta_sto; 
-                end
-        READ_ACK_DATA : 
-                begin 
-                    scl_en = sta_sto; 
-                end
-        READ_DATA : 
-                begin 
-                    scl_en = sta_sto; 
-                end
-        WRITE_ACK_DATA : 
-                begin 
-                    scl_en = sta_sto; 
-                end
-        STOP : 
-                begin 
-                    scl_en =  sda_o; 
-                end
-    endcase
+    if(Q == START)
+        begin 
+            scl_en = ~ sta_sto; 
+        end
+    else if ( Q == IDLE )
+        begin 
+            scl_en = 1'b1; 
+        end
+    else 
+        begin 
+            scl_en = sta_sto; 
+        end
 end
-   assign  sda = sda_o ? 1'bz : 1'b0;
-   assign scl = scl_en ? 1'bz : 1'b0; 
+    assign  i_txff_rd = ((Q == READ_ACK_DATA ) || (Q == READ_ACK)) && (sclk) ;
+    assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ;
+    assign  sda = sda_o  ? 1'bz : 1'b0;
+    assign  scl = scl_en ? 1'bz : 1'b0; 
 endmodule            
