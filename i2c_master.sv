@@ -9,10 +9,10 @@ module i2c_master(
     input       [3:0]   data_cnt    ,
     input               rw          ,
     inout               sda         ,
-    inout               scl ,
-
-    output  wire             i_txff_rd   ,
-    output  wire             i_rxff_wr   
+    inout               scl         ,
+    output              i2c_done    ,
+    output  wire        i_txff_rd   ,
+    output  wire        i_rxff_wr   
     /*input   wire            i_txff_empty,
     input   wire            i_rxff_full */
 );
@@ -230,6 +230,7 @@ begin
             scl_en = sta_sto; 
         end
 end
+    assign  i2c_done  = ((Q == STOP) && (sclk));
     assign  i_txff_rd = ((Q == READ_ACK_DATA ) || (Q == READ_ACK)) && (sclk) ;
     assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ;
     assign  sda = sda_o  ? 1'bz : 1'b0;
