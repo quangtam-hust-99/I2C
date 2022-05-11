@@ -6,7 +6,7 @@ module i2c_master(
     input       [6:0]   addr        ,
     input       [7:0]   data_in     ,
     output  reg [7:0]   data_out    ,
-    input       [3:0]   data_cnt    ,
+    input       [3:0]   data_cnt    , // byte data = n <=> data_cnt = n-1
     input               rw          ,
     inout               sda         ,
     inout               scl         ,
@@ -70,12 +70,14 @@ end
 always_comb
 begin
     case(Q)
-            IDLE:
+            IDLE:if(i_ready)
                     begin // 1
                         Q_next = START ;
                         sda_o  = 1'b1  ;
                         data_addr_rw = {addr,rw} ;
                     end
+                    else
+                        Q_next = IDLE ;
             START:      
                     begin//2
                         Q_next = ADDR ;
@@ -133,13 +135,14 @@ begin
                                 begin
                                     Q_next = WRITE_ACK_DATA;
                                 end
+                            sda_o = 1'b1 ;
                         end
             WRITE_ACK_DATA :     //8
                         begin 
                             if(counter_byte > 0) 
                                 begin  
                                     Q_next = READ_DATA;  
-                                    
+                                    sda_o  = 1'b0 ;
                                 end
                             else 
                                 begin
@@ -231,7 +234,7 @@ begin
         end
 end
     assign  i2c_done  = ((Q == STOP) && (sclk));
-    assign  i_txff_rd = ((Q == READ_ACK_DATA ) || (Q == READ_ACK)) && (sclk) ;
+    assign  i_txff_rd = ( (Q == READ_ACK_DATA) || (Q == READ_ACK)) && (sclk) ;
     assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ;
     assign  sda = sda_o  ? 1'bz : 1'b0;
     assign  scl = scl_en ? 1'bz : 1'b0; 
