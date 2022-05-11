@@ -4,7 +4,7 @@ module fifo_generator
     input   wire    wr,rd           ,
     input   wire    [7:0] data_in   , // write data
     output  wire    full,empty      ,
-    output  reg     [7:0] data_out    // read data
+    output  wire     [7:0] data_out    // read data
 );
 
 reg   [7:0]   mem [0:15]  ;
@@ -43,7 +43,6 @@ begin
     else if( rd /*&& !empty*/)
         begin
             rd_ptr <= rd_en ;
-            data_out <= mem[rd_ptr];
         end
 end
 
@@ -72,6 +71,6 @@ assign wr_en    = ( wr /*&& !full*/)   ? wr_ptr + 4'b1 : wr_ptr + 4'b0 ;
 assign rd_en    = ( rd /*&& !empty*/)  ? rd_ptr + 4'b1 : rd_ptr + 4'b0 ;
 assign full     = (counter == 15)  ? 4'b1  : 4'b0  ;
 assign empty    = (counter == 0)   ? 4'b1  : 4'b0  ;
-
+assign data_out = mem[rd_ptr];
 
 endmodule
