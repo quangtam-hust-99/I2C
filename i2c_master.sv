@@ -27,7 +27,7 @@ reg           scl_en,scl_idle,sta_sto;
 
 reg [7:0] data_addr_rw ;
 reg [3:0] cnt;
-
+reg [7:0] reg_data_in;
 localparam  [3:0]   
                     IDLE            = 1 ,
                     START           = 2 ,
@@ -109,7 +109,7 @@ begin
                     end            
             WRITE_DATA :      //5
                         begin 
-                            sda_o = data_in[counter];
+                            sda_o = reg_data_in[counter];
                             if(counter == 0)
                                 begin
                                     Q_next = READ_ACK_DATA;
@@ -238,4 +238,11 @@ end
     assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ;
     assign  sda = sda_o  ? 1'bz : 1'b0;
     assign  scl = scl_en ? 1'bz : 1'b0; 
+always @(posedge clk or negedge rst)
+begin
+    if(~rst)
+    reg_data_in <= 8'b0;
+    else if(i_txff_rd)
+    reg_data_in <= data_in;
+end
 endmodule            
