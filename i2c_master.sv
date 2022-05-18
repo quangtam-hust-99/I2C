@@ -8,37 +8,34 @@ module i2c_master(
     output  reg [7:0]   data_out    ,
     input       [3:0]   data_cnt    , // byte data = n <=> data_cnt = n-1
     input               rw          ,
-    inout               sda         ,
-    inout               scl         ,
+    input               sda_i       ,
+    output  reg         sda_o       ,
+    output  reg         scl_o       ,
     output              i2c_done    ,
     output  wire        i_txff_rd   ,
-    output  wire        i_rxff_wr   
-    /*input   wire            i_txff_empty,
-    input   wire            i_rxff_full */
+    output  wire        i_rxff_wr   ,
+    input   wire        i_txff_empty,
+    input   wire        i_rxff_full 
 );
 reg   [3:0]   Q,Q_next    ;
-reg   [3:0]   counter, counter_byte,counter_data_read;
-wire  [7:0]   mem_in  [0:4]   ;           // tranfer data from master to slave
-reg   [7:0]   mem_out [0:4]   ;            // tranfer data from master to slave
+reg   [3:0]   counter, counter_byte;
 wire          sclk,clk_en;
-reg           sda_o;
-reg           scl_en,scl_idle,sta_sto;
+reg           sta_sto;
 
 
 reg [7:0] data_addr_rw ;
-reg [3:0] cnt;
 reg [7:0] reg_data_in;
 localparam  [3:0]   
-                    IDLE            = 1 ,
-                    START           = 2 ,
-                    ADDR            = 3 ,     // tranfer address and bit read/wrtite
-                    READ_ACK        = 4 ,     //ACK address
-                    WRITE_DATA      = 5 ,     // data from master to slave
-                    READ_ACK_DATA   = 6 ,     // ACK data from master to slave
-                    READ_DATA       = 7 ,     // data from slave to master
-                    WRITE_ACK_DATA  = 8 ,     // ACK data from slave to master
-                    SR              = 9 ,     // repeat start
-                    STOP            = 10;
+                    IDLE            = 4'd1 ,
+                    START           = 4'd2 ,
+                    ADDR            = 4'd3 ,     // tranfer address and bit read/wrtite
+                    READ_ACK        = 4'd4 ,     // ACK address
+                    WRITE_DATA      = 4'd5 ,     // data from master to slave
+                    READ_ACK_DATA   = 4'd6 ,     // ACK data from master to slave
+                    READ_DATA       = 4'd7 ,     // data from slave to master
+                    WRITE_ACK_DATA  = 4'd8 ,     // ACK data from slave to master
+                    SR              = 4'd9 ,     // repeat start
+                    STOP            = 4'd10;
 div_clk #(.m(249),.n(10)) uut(
     .clk(clk),
     .rst(rst),
@@ -94,11 +91,11 @@ begin
                     end
             READ_ACK :     //4
                     begin
-                        if((rw==0) && (sda ==0)) 
+                        if((rw==0) && (sda_i ==0)) 
                             begin
                                 Q_next = WRITE_DATA; 
                             end
-                        else if ((rw==1) && (sda ==0)) 
+                        else if ((rw==1) && (sda_i ==0)) 
                             begin
                                 Q_next = READ_DATA;
                             end
@@ -106,6 +103,7 @@ begin
                             begin
                                 Q_next = STOP;
                             end
+                        sda_o = 1'b1 ;
                     end            
             WRITE_DATA :      //5
                         begin 
@@ -127,10 +125,11 @@ begin
                                 begin
                                     Q_next = STOP ;
                                 end
+                            sda_o = 1'b1 ;
                         end   
             READ_DATA :     //7
                         begin 
-                            data_out[counter] = sda;
+                            data_out[counter] = sda_i;
                             if(counter == 0)
                                 begin
                                     Q_next = WRITE_ACK_DATA;
@@ -222,22 +221,20 @@ always_comb
 begin
     if(Q == START)
         begin 
-            scl_en = ~ sta_sto; 
+            scl_o = ~ sta_sto; 
         end
     else if ( Q == IDLE )
         begin 
-            scl_en = 1'b1; 
+            scl_o = 1'b1; 
         end
     else 
         begin 
-            scl_en = sta_sto; 
+            scl_o = sta_sto; 
         end
 end
-    assign  i2c_done  = ((Q == STOP) && (sclk));
-    assign  i_txff_rd = ( (Q == READ_ACK_DATA) || (Q == READ_ACK)) && (sclk) ;
-    assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ;
-    assign  sda = sda_o  ? 1'bz : 1'b0;
-    assign  scl = scl_en ? 1'bz : 1'b0; 
+    assign  i2c_done  = ((Q == STOP) && (sclk)) ;
+    assign  i_txff_rd = ( ((Q == READ_ACK_DATA) || (Q == READ_ACK)) && !(Q_next == STOP)) && (sclk) ;
+    assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ; 
 always @(posedge clk or negedge rst)
 begin
     if(~rst)
