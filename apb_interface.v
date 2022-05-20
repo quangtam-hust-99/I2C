@@ -34,11 +34,21 @@ reg [7:0] rx_status ;
 always@(posedge PCLK or negedge PRESETn)
 begin
     if(~PRESETn)
-        rx_status <= 8'b0 ;
+         begin
+            rx_status <= 8'b0 ;
+            i_ready <= 1'b0;
+        end
     else if(i2c_done)
-        rx_status[0] <= 1'b1;
+        begin
+            rx_status[0] <= 1'b1;
+            i_ready <= 1'b0;
+        end
     else if(PADDR[3:2]==3 & PSEL & PENABLE)
-        rx_status[0] <= 1'b0;
+        begin
+            rx_status[0] <= 1'b0;
+            i_ready <= 1'b1;
+        end
+        
 end
 // write
 always@(posedge PCLK or negedge PRESETn)
@@ -51,7 +61,6 @@ begin
         apb_txff_wr <= 1'b0;
         apb_rxff_rd <= 1'b0;
         PRDATA <= 0;
-        i_ready <= 1'b0;
     end
     else if(PWRITE & PSEL & PENABLE)
     begin
@@ -63,7 +72,7 @@ begin
                 tx_apb_data <= PWDATA[7:0] ;
                 apb_txff_wr  <= 1'b1 ;
                 apb_rxff_rd  <= 1'b0 ;
-                i_ready <= 1'b1;
+                
             end
             2'd2: begin
                 tx_apb_data_cnt <= PWDATA[7:0] ;
@@ -90,26 +99,6 @@ begin
             apb_rxff_rd <= 1'b0;
         end
 end
-////////////////////////////////////////////////////
-// control signal
-    /*always @(*)
-    begin
-        if(PSEL & PENABLE)
-            begin
-                if(PWRITE & PADDR[3:2]==1 ) begin
-                    apb_txff_wr  = 1'b1 ;
-                    apb_rxff_rd  = 1'b0 ;
-                end
-                else if ( ~PWRITE ) begin
-                    apb_txff_wr  = 1'b0  ;
-                    apb_rxff_rd  = 1'b1  ;
-                end
-            end
-        else 
-            begin
-                apb_txff_wr  = 1'b0 ;
-                apb_rxff_rd  = 1'b0 ;
-            end
-    end*/
+
 endmodule
         

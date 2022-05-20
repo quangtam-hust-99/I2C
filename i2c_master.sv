@@ -6,7 +6,7 @@ module i2c_master(
     input       [6:0]   addr        ,
     input       [7:0]   data_in     ,
     output  reg [7:0]   data_out    ,
-    input       [3:0]   data_cnt    , // byte data = n <=> data_cnt = n-1
+    input       [7:0]   data_cnt    , // byte data = n <=> data_cnt = n-1
     input               rw          ,
     input               sda_i       ,
     output  reg         sda_o       ,
@@ -18,7 +18,7 @@ module i2c_master(
     input   wire        i_rxff_full 
 );
 reg   [3:0]   Q,Q_next    ;
-reg   [3:0]   counter, counter_byte;
+reg   [7:0]   counter, counter_byte;
 wire          sclk,clk_en;
 reg           sta_sto;
 
@@ -42,7 +42,7 @@ div_clk #(.m(249),.n(10)) uut(
     .clk_en(clk_en),
     .sclk(sclk)
 );
-always_ff @(posedge clk_en or negedge rst)
+always_ff @(negedge clk_en or negedge rst)
 begin
     if(~rst)
         begin
@@ -53,7 +53,7 @@ begin
             sta_sto <= ~ sta_sto;
         end
 end
-always_ff @(posedge sclk or negedge rst)
+always_ff @(negedge sclk or negedge rst)
 begin
         if(~rst)
             begin
@@ -67,14 +67,16 @@ end
 always_comb
 begin
     case(Q)
-            IDLE:if(i_ready)
-                    begin // 1
-                        Q_next = START ;
-                        sda_o  = 1'b1  ;
-                        data_addr_rw = {addr,rw} ;
-                    end
+            IDLE:begin
+                    if(i_ready)
+                        begin // 1
+                            Q_next = START ;
+                            data_addr_rw = {addr,rw} ;
+                        end
                     else
-                        Q_next = IDLE ;
+                            Q_next = IDLE ;
+                 sda_o  = 1'b1  ;
+                 end
             START:      
                     begin//2
                         Q_next = ADDR ;
@@ -146,7 +148,7 @@ begin
                             else 
                                 begin
                                     Q_next = STOP ;
-                                    sda_o  = 1'b0 ;
+                                    sda_o  = 1'b1 ;
                                 end
                         end
             STOP :      //9
@@ -159,7 +161,7 @@ begin
             
 end
 
-always_ff @(posedge sclk) 
+always_ff @(negedge sclk) 
       case(Q)
                     START :                     
                         begin 
@@ -232,10 +234,10 @@ begin
             scl_o = sta_sto; 
         end
 end
-    assign  i2c_done  = ((Q == STOP) && (sclk)) ;
-    assign  i_txff_rd = ( ((Q == READ_ACK_DATA) || (Q == READ_ACK)) && !(Q_next == STOP)) && (sclk) ;
+    assign  i2c_done  = ((Q == STOP)&&(sclk))   ;
+    assign  i_txff_rd = (((Q == READ_ACK_DATA)||(Q == READ_ACK))    &&  !(Q_next == STOP)) && (sclk) ;
     assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ; 
-always @(posedge clk or negedge rst)
+always @(negedge clk or negedge rst)
 begin
     if(~rst)
     reg_data_in <= 8'b0;
