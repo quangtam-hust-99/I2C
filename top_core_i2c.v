@@ -6,14 +6,14 @@ module top_core_i2c
     input   wire            PWRITE        , //1 WRITE ,0 READ
     input   wire    [31:0]  PADDR         ,
     input   wire    [31:0]  PWDATA        ,
-    output  wire    [7:0]   PRDATA        ,
+    output  wire    [31:0]  PRDATA        ,
     output  wire            PREADY        , 
     output  wire            PSLVERR       ,
-    ////
-    inout sda ,
-    inout scl 
+    //// pad
+    input   wire            sda_i         ,
+    output  wire            sda_o         ,
+    output  wire            scl_o       
 );
-
     wire    [7:0]   rx_apb_data     ;
     wire    [7:0]   rx_status       ;
     wire    [7:0]   tx_apb_data     ;
@@ -31,7 +31,6 @@ module top_core_i2c
     wire            i_rxff_full     ;
     wire            i_ready         ;
     wire            i2c_done        ;
-    wire            rx_wr_en        ;
 
   
 apb_interface apb_interface
@@ -47,12 +46,9 @@ apb_interface apb_interface
     .PADDR          (PADDR          ),
     .PSLVERR        (PSLVERR        ),
     .rx_apb_data    (rx_apb_data    ),
-    //.rx_status      (rx_status      ),
     .tx_apb_data    (tx_apb_data    ),
     .tx_apb_addr    (tx_apb_addr    ),
     .tx_apb_data_cnt(tx_apb_data_cnt),
-    .apb_txff_full  (apb_txff_full  ),
-    .apb_rxff_empty (apb_rxff_empty ),
     .apb_rxff_rd    (apb_rxff_rd    ),
     .apb_txff_wr    (apb_txff_wr    ),
     .i_ready        (i_ready        ),
@@ -87,17 +83,16 @@ i2c_master i2c_master
 (
     .clk        (PCLK               ),
     .rst        (PRESETn            ),
-    .rw         (tx_apb_addr[0]     ),
     .i_ready    (i_ready            ),
-    .addr       (tx_apb_addr[7:1]   ),
+    .data_addr_rw(tx_apb_addr       ),
     .data_in    (data_in_i2c        ),
     .data_out   (data_out_i2c       ),
     .data_cnt   (tx_apb_data_cnt    ),
     .i_txff_rd  (i_txff_rd          ),
     .i_rxff_wr  (i_rxff_wr          ),
     .i2c_done   (i2c_done           ),
-    .sda        (sda                ),
-    .scl        (scl                )
+    .sda_o      (sda_o              ),
+    .sda_i      (sda_i              ),
+    .scl_o      (scl_o              )
 );
-
 endmodule

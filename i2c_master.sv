@@ -3,19 +3,21 @@ module i2c_master(
     input               clk         ,
     input               rst         ,
     input               i_ready     ,
-    input       [6:0]   addr        ,
+    input       [7:0]   data_addr_rw,
     input       [7:0]   data_in     ,
     output  reg [7:0]   data_out    ,
     input       [7:0]   data_cnt    , // byte data = n <=> data_cnt = n-1
-    input               rw          ,
     input               sda_i       ,
     output  reg         sda_o       ,
     output  reg         scl_o       ,
     output              i2c_done    ,
     output  wire        i_txff_rd   ,
     output  wire        i_rxff_wr   ,
-    input   wire        i_txff_empty,
-    input   wire        i_rxff_full 
+    
+    
+    output wire [3:0] A0,A1,
+    output wire sclk_o,
+    output wire [7:0] cnt,cnt_byte
 );
 reg   [3:0]   Q,Q_next    ;
 reg   [7:0]   counter, counter_byte;
@@ -23,7 +25,7 @@ wire          sclk,clk_en;
 reg           sta_sto;
 
 
-reg [7:0] data_addr_rw ;
+
 reg [7:0] reg_data_in;
 localparam  [3:0]   
                     IDLE            = 4'd1 ,
@@ -42,62 +44,61 @@ div_clk #(.m(249),.n(10)) uut(
     .clk_en(clk_en),
     .sclk(sclk)
 );
-always_ff @(negedge clk_en or negedge rst)
+always @(posedge clk or negedge rst)
 begin
     if(~rst)
         begin
             sta_sto<=0;
         end
-    else 
+    else if(clk_en)
         begin
             sta_sto <= ~ sta_sto;
         end
 end
-always_ff @(negedge sclk or negedge rst)
+always @(posedge clk or negedge rst)
 begin
         if(~rst)
             begin
                 Q<=IDLE;
             end
-        else
+        else 
             begin
                 Q<= Q_next;
             end
 end
-always_comb
+always@*
 begin
+Q_next = Q;
     case(Q)
-            IDLE:begin
-                    if(i_ready)
-                        begin // 1
-                            Q_next = START ;
-                            data_addr_rw = {addr,rw} ;
-                        end
-                    else
-                            Q_next = IDLE ;
-                 sda_o  = 1'b1  ;
-                 end
-            START:      
-                    begin//2
-                        Q_next = ADDR ;
-                        sda_o  = 1'b0 ;
-
-                    end
-            ADDR :      
-                    begin //3
-                        sda_o = data_addr_rw[counter];
-                        if(counter == 0)  
-                            begin                            
-                            Q_next = READ_ACK;
+            IDLE:if(sclk)   //1
+                    begin
+                        if(i_ready)
+                            begin 
+                                Q_next = START ;
+                            end
+                        else
+                            begin
+                                Q_next = IDLE ;
                             end
                     end
-            READ_ACK :     //4
+            START: if(sclk)    //2 
+                    begin   
+                        Q_next = ADDR ;
+                    end
+            ADDR : if(sclk)  //3    
+                    begin 
+                        if(counter == 0)  
+                            begin                            
+                                Q_next = READ_ACK;
+                            end
+                    end
+            READ_ACK :if(sclk)    //4
                     begin
-                        if((rw==0) && (sda_i ==0)) 
+                        if((data_addr_rw[0]==0) && (sda_i ==0)) 
                             begin
                                 Q_next = WRITE_DATA; 
                             end
-                        else if ((rw==1) && (sda_i ==0)) 
+                        else if ((data_addr_rw[0]==1) && (sda_i ==0)) 
                             begin
                                 Q_next = READ_DATA;
                             end
@@ -105,18 +106,16 @@ begin
                             begin
                                 Q_next = STOP;
                             end
-                        sda_o = 1'b1 ;
                     end            
-            WRITE_DATA :      //5
+            WRITE_DATA :if(sclk)       //5
                         begin 
-                            sda_o = reg_data_in[counter];
                             if(counter == 0)
                                 begin
                                     Q_next = READ_ACK_DATA;
                                 end
                                 
                         end
-            READ_ACK_DATA :     //6
+            READ_ACK_DATA : if(sclk)     //6
                         begin 
                             if(counter_byte > 0) 
                                 begin    
@@ -126,34 +125,28 @@ begin
                             else 
                                 begin
                                     Q_next = STOP ;
-                                end
-                            sda_o = 1'b1 ;
+                                end 
                         end   
-            READ_DATA :     //7
+            READ_DATA :  if(sclk)    //7
                         begin 
-                            data_out[counter] = sda_i;
                             if(counter == 0)
                                 begin
                                     Q_next = WRITE_ACK_DATA;
                                 end
-                            sda_o = 1'b1 ;
                         end
-            WRITE_ACK_DATA :     //8
+            WRITE_ACK_DATA :if(sclk)      //8
                         begin 
                             if(counter_byte > 0) 
                                 begin  
                                     Q_next = READ_DATA;  
-                                    sda_o  = 1'b0 ;
                                 end
                             else 
                                 begin
                                     Q_next = STOP ;
-                                    sda_o  = 1'b1 ;
                                 end
                         end
-            STOP :      //9
+            STOP :  if(sclk)     //10
                         begin 
-                            sda_o = 1'b0;
                             Q_next = IDLE;
                         end
 
@@ -161,45 +154,73 @@ begin
             
 end
 
-always_ff @(negedge sclk) 
+always @(posedge clk )
       case(Q)
+                    IDLE: begin
+                            sda_o  <= 1'b1  ;
+                            counter_byte <= 0;
+                            counter <= 7  ;
+                          end
+                            
                     START :                     
                         begin 
                             counter <= 7             ;
                             counter_byte <= data_cnt ;
+                            sda_o  <= 1'b0 ;
                         end
-                    ADDR : 
-                       
+                    ADDR : begin
+                        if(sclk) 
                         begin 
                             counter <= counter-1 ; 
+                            
                         end
-                    READ_ACK :
-                        
+                        sda_o <= data_addr_rw[counter];
+                        end
+                    READ_ACK :begin
+                        if(sclk)
                         begin
                             counter <= 7             ;
                             counter_byte <= data_cnt ;
+                            
                         end
+                        sda_o <= 1'b1 ;
+                        end 
                     WRITE_DATA :
-                       
+                    begin
+                       if(sclk)  
                         begin 
                             counter <= counter -1    ;
                         end
-                    READ_DATA:
-                       
+                        sda_o <= reg_data_in[counter];
+                        end
+                    READ_DATA:begin
+                       if(sclk)  
                         begin 
                             counter <= counter -1    ;
                         end
-                    WRITE_ACK_DATA :
-                       
-                        begin
-                            counter <= 7 ;
-                            if((counter_byte > data_cnt) || (counter < 0))
-                                counter_byte <= data_cnt        ;
+                        sda_o <= 1'b1;
+                        data_out[counter] = sda_i;
+                        end
+                    WRITE_ACK_DATA :begin
+                        if(sclk)  
+                            begin 
+                                counter <= 7 ;
+                                if((counter_byte > data_cnt) || (counter < 0)) begin
+                                    counter_byte <= data_cnt        ;
+                                    
+                                    end
+                                else begin
+                                    counter_byte <= counter_byte -1 ;                                   
+                                    end
+                            end
+                        if(counter_byte == 0)
+                            sda_o  <= 1'b1 ;
                             else
-                                counter_byte <= counter_byte -1 ;
+                            sda_o  <= 1'b0 ;
                         end
                     READ_ACK_DATA :
-                        
+                    begin
+                        if(sclk)  
                         begin
                             counter <= 7;
                             if((counter_byte > data_cnt) || (counter < 0))
@@ -207,19 +228,16 @@ always_ff @(negedge sclk)
                             else
                                 counter_byte <= counter_byte -1 ;
                         end
+                        sda_o <= 1'b1 ;
+                        end
                     STOP :  
-                       
+                        
                         begin
                             counter_byte <= data_cnt ;
-                        end
-                    default :
-                        
-                        begin 
-                            counter <=0              ;
-                            counter_byte <= data_cnt ;
+                            sda_o <= 1'b0;
                         end
                 endcase
-always_comb 
+always@* 
 begin
     if(Q == START)
         begin 
@@ -237,7 +255,7 @@ end
     assign  i2c_done  = ((Q == STOP)&&(sclk))   ;
     assign  i_txff_rd = (((Q == READ_ACK_DATA)||(Q == READ_ACK))    &&  !(Q_next == STOP)) && (sclk) ;
     assign  i_rxff_wr = (Q == WRITE_ACK_DATA) && (sclk) ; 
-always @(negedge clk or negedge rst)
+always @(posedge clk or negedge rst)
 begin
     if(~rst)
     reg_data_in <= 8'b0;
