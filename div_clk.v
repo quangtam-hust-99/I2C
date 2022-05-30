@@ -3,7 +3,6 @@ module div_clk
 (   
     input  wire         clk, rst,
     input  wire [15:0]  div_cnt,
-    input  wire         start ,
     output reg          sclk ,clk_en
 );
 reg [15:0] counter;
@@ -12,12 +11,12 @@ always @( posedge clk or negedge rst)
     begin
         if(~rst)
             begin
-            counter <=0      ;
+            counter <= 16'b0 ;
             sclk    <= 1'b0  ;
             end
                 else if (counter >= div_cnt)
                     begin
-                    counter <=0  ;
+                    counter <= 16'b0 ;
                     sclk <= 1'b1 ;
                     end
                 else 
@@ -30,13 +29,13 @@ always @(posedge clk or negedge rst)
     begin
         if(~rst)
             begin
-                counter_clk <= 0;
+                counter_clk <= 16'b0;
                 clk_en <= 1'b0;
             end
         else if (counter_clk >= div_cnt/2)
             begin
                 clk_en <= ~ clk_en;
-                counter_clk <= 0;
+                counter_clk <= 16'b0;
             end
         else 
             begin
