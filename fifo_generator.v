@@ -3,8 +3,8 @@ module fifo_generator
     input   wire    clk,reset       , // reset active low
     input   wire    wr,rd           ,
     input   wire    [7:0] data_in   , // write data
-    output  wire    full,empty      ,
-    output  wire     [7:0] data_out    // read data
+    output  wire    [7:0] data_out  , // read data
+    output  wire    full , empty    
 );
 
 reg   [7:0]   mem [0:15]  ;
@@ -24,7 +24,7 @@ begin
         begin
             wr_ptr <= 7'b0  ;
         end
-    else if( wr /*&& !full*/)
+    else if( wr && !full)
         begin
             mem[wr_ptr]<=data_in  ;
             wr_ptr <= wr_en       ;
@@ -40,7 +40,7 @@ begin
         begin
             rd_ptr <= 4'b0  ;
         end
-    else if( rd /*&& !empty*/)
+    else if( rd && !empty)
         begin
             rd_ptr <= rd_en ;
         end
@@ -55,22 +55,23 @@ begin
         begin
             counter <= 4'b0;
         end
-    else if( rd /*&& !empty*/ && !wr)
-        begin
-            counter <= counter - 4'b1;
-        end
-    else if( wr /*&& !full*/ && !rd)
-        begin
-            counter <= counter + 4'b1;
-        end
     else 
-        counter <= 4'b0;
+        begin
+            if( rd && !empty && !wr)
+                begin
+                    counter <= counter - 4'b1;
+                end
+            else if( wr && !full && !rd)
+                begin
+                    counter <= counter + 4'b1;
+                end 
+        end  
 end
 
-assign wr_en    = ( wr /*&& !full*/)   ? wr_ptr + 4'b1 : wr_ptr + 4'b0 ;
-assign rd_en    = ( rd /*&& !empty*/)  ? rd_ptr + 4'b1 : rd_ptr + 4'b0 ;
-assign full     = (counter == 15)  ? 4'b1  : 4'b0  ;
-assign empty    = (counter == 0)   ? 4'b1  : 4'b0  ;
+assign wr_en    = ( wr && !full  )  ? wr_ptr + 4'b1 : wr_ptr  ;
+assign rd_en    = ( rd && !empty )  ? rd_ptr + 4'b1 : rd_ptr  ;
+assign full     = (counter == 15 )  ? 1'b1 : 1'b0;
+assign empty    = (counter == 0  )  ? 1'b1 : 1'b0;
 assign data_out = mem[rd_ptr];
 
 endmodule

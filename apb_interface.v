@@ -10,15 +10,18 @@ module apb_interface
     output  wire            PREADY          ,
     output  wire            PSLVERR         ,
 
-    //// ports fifo
+    //// ports cornect apb_slave,fifo,i2c_master
     input   wire    [7:0]   rx_apb_data     , //// recivered data
-    input   wire            i2c_done        ,
     output  reg     [7:0]   tx_apb_data     , //// transmit data
     output  reg     [7:0]   tx_apb_addr     , //// address + read/write
-    output  reg     [7:0]   tx_apb_data_cnt ,
+    output  reg     [7:0]   tx_apb_data_cnt , //// number byta data
+    output  reg     [15:0]  tx_div_cnt      , //// division frequency 
+    input   wire            apb_txff_full   ,
+    input   wire            apb_rxff_empty  ,
     output  reg             apb_txff_wr     ,
     output  reg             apb_rxff_rd     , 
-    output  reg             i_ready         //// i2c ready      
+    input   wire            i2c_done        ,
+    output  reg             i_ready          //// i2c ready      
 
 );
 //////////////////////////////////////////////////////
@@ -60,6 +63,7 @@ begin
         apb_txff_wr <= 1'b0 ;
         apb_rxff_rd <= 1'b0 ;
         tx_ctrl     <= 8'b0 ;
+        tx_div_cnt  <= 16'b0;
         PRDATA      <= 0    ;
         tx_apb_data_cnt <= 8'b0 ;
     end
@@ -70,10 +74,9 @@ begin
                 tx_apb_addr <= PWDATA[7:0] ;
             end
             3'd1: begin
-                tx_apb_data <= PWDATA[7:0] ;
-                apb_txff_wr  <= 1'b1 ;
-                apb_rxff_rd  <= 1'b0 ;
-                
+                        tx_apb_data  <= PWDATA[7:0] ;
+                        apb_txff_wr  <= 1'b1 ;
+                        apb_rxff_rd  <= 1'b0 ;            
             end
             3'd2: begin
                 tx_apb_data_cnt <= PWDATA[7:0] ;
@@ -81,6 +84,9 @@ begin
             3'd4: begin
                  tx_ctrl <= PWDATA[7:0] ;
              end
+            3'd6: begin
+                tx_div_cnt <= PWDATA[15:0];
+            end
         endcase
     end
     // read
@@ -91,11 +97,10 @@ begin
                  PRDATA <= {31'd0 , rx_status[0]} ;
              end
         3'd5: begin
-                PRDATA <= {24'd0 , rx_apb_data} ;
-                apb_txff_wr  <= 1'b0  ;
-                apb_rxff_rd  <= 1'b1  ;
-            end
-        
+                 PRDATA <= {24'd0 , rx_apb_data} ;
+                 apb_txff_wr  <= 1'b0  ;
+                 apb_rxff_rd  <= 1'b1  ;
+            end       
         endcase
     end
     else
@@ -105,6 +110,5 @@ begin
             tx_ctrl     <= 8'b0;
         end
 end
-
 endmodule
  
