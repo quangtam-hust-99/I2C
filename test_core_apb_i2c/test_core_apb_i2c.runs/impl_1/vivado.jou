@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2017.2 (64-bit)
+# SW Build 1909853 on Thu Jun 15 18:39:09 MDT 2017
+# IP Build 1909766 on Thu Jun 15 19:58:00 MDT 2017
+# Start of session at: Fri Jun  3 09:44:13 2022
+# Process ID: 7324
+# Current directory: D:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.runs/impl_1
+# Command line: vivado.exe -log top_cpu.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source top_cpu.tcl -notrace
+# Log file: D:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.runs/impl_1/top_cpu.vdi
+# Journal file: D:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.runs/impl_1\vivado.jou
+#-----------------------------------------------------------
+source top_cpu.tcl -notrace

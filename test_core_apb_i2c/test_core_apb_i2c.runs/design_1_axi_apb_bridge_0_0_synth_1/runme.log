@@ -1,0 +1,58 @@
+
+*** Running vivado
+    with args -log design_1_axi_apb_bridge_0_0.vds -m64 -product Vivado -mode batch -messageDb vivado.pb -notrace -source design_1_axi_apb_bridge_0_0.tcl
+
+
+****** Vivado v2017.2 (64-bit)
+  **** SW Build 1909853 on Thu Jun 15 18:39:09 MDT 2017
+  **** IP Build 1909766 on Thu Jun 15 19:58:00 MDT 2017
+    ** Copyright 1986-2017 Xilinx, Inc. All Rights Reserved.
+
+source design_1_axi_apb_bridge_0_0.tcl -notrace
+Starting RTL Elaboration : Time (s): cpu = 00:00:04 ; elapsed = 00:00:05 . Memory (MB): peak = 539.715 ; gain = 0.000
+INFO: [Synth 8-638] synthesizing module 'design_1_axi_apb_bridge_0_0' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ip/design_1_axi_apb_bridge_0_0/synth/design_1_axi_apb_bridge_0_0.vhd:90]
+INFO: [Synth 8-638] synthesizing module 'axi_apb_bridge' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:7283]
+INFO: [Synth 8-638] synthesizing module 'psel_decoder' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:564]
+INFO: [Synth 8-256] done synthesizing module 'psel_decoder' (1#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:564]
+INFO: [Synth 8-638] synthesizing module 'multiplexor' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:4147]
+INFO: [Synth 8-256] done synthesizing module 'multiplexor' (2#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:4147]
+INFO: [Synth 8-638] synthesizing module 'axilite_sif' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:6097]
+INFO: [Synth 8-256] done synthesizing module 'axilite_sif' (3#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:6097]
+INFO: [Synth 8-638] synthesizing module 'apb_mif' [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:6673]
+INFO: [Synth 8-256] done synthesizing module 'apb_mif' (4#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:6673]
+INFO: [Synth 8-256] done synthesizing module 'axi_apb_bridge' (5#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ipshared/8bef/hdl/axi_apb_bridge_v3_0_vh_rfs.vhd:7283]
+INFO: [Synth 8-256] done synthesizing module 'design_1_axi_apb_bridge_0_0' (6#1) [d:/vivado/project/test_core_apb_i2c/test_core_apb_i2c.srcs/sources_1/bd/design_1/ip/design_1_axi_apb_bridge_0_0/synth/design_1_axi_apb_bridge_0_0.vhd:90]
+Finished RTL Elaboration : Time (s): cpu = 00:00:05 ; elapsed = 00:00:07 . Memory (MB): peak = 539.715 ; gain = 0.000
+Finished RTL Optimization Phase 1 : Time (s): cpu = 00:00:06 ; elapsed = 00:00:07 . Memory (MB): peak = 539.715 ; gain = 0.000
+INFO: [Device 21-403] Loading part xc7k325tffg900-2
+Constraint Validation Runtime : Time (s): cpu = 00:00:00 ; elapsed = 00:00:00.022 . Memory (MB): peak = 834.797 ; gain = 0.000
+Finished Constraint Validation : Time (s): cpu = 00:00:18 ; elapsed = 00:00:22 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Loading Part and Timing Information : Time (s): cpu = 00:00:18 ; elapsed = 00:00:22 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished applying 'set_property' XDC Constraints : Time (s): cpu = 00:00:18 ; elapsed = 00:00:22 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished RTL Optimization Phase 2 : Time (s): cpu = 00:00:18 ; elapsed = 00:00:22 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Cross Boundary and Area Optimization : Time (s): cpu = 00:00:18 ; elapsed = 00:00:23 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Applying XDC Timing Constraints : Time (s): cpu = 00:00:30 ; elapsed = 00:00:37 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Timing Optimization : Time (s): cpu = 00:00:31 ; elapsed = 00:00:37 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Technology Mapping : Time (s): cpu = 00:00:31 ; elapsed = 00:00:37 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished IO Insertion : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Renaming Generated Instances : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Rebuilding User Hierarchy : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Renaming Generated Ports : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Handling Custom Attributes : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+Finished Renaming Generated Nets : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+
+Report Cell Usage: 
++------+------+------+
+|      |Cell  |Count |
++------+------+------+
+|1     |LUT1  |     1|
+|2     |LUT2  |    33|
+|3     |LUT3  |    36|
+|4     |LUT4  |     7|
+|5     |LUT5  |    43|
+|6     |LUT6  |    39|
+|7     |MUXF7 |     1|
+|8     |FDRE  |   143|
++------+------+------+
+Finished Writing Synthesis Report : Time (s): cpu = 00:00:31 ; elapsed = 00:00:38 . Memory (MB): peak = 834.797 ; gain = 295.082
+synth_design: Time (s): cpu = 00:00:36 ; elapsed = 00:00:45 . Memory (MB): peak = 834.797 ; gain = 554.203

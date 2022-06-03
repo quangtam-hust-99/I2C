@@ -1,0 +1,21 @@
+10:28:09 **** Auto Build of configuration Debug for project test_core_apb_i2c ****
+make all 
+'Building file: ../src/helloworld.c'
+'Invoking: MicroBlaze gcc compiler'
+mb-gcc -Wall -O0 -g3 -c -fmessage-length=0 -MT"src/helloworld.o" -I../../test_core_apb_i2c_bsp/microblaze_0/include -mlittle-endian -mcpu=v10.0 -mxl-soft-mul -Wl,--no-relax -ffunction-sections -fdata-sections -MMD -MP -MF"src/helloworld.d" -MT"src/helloworld.o" -o "src/helloworld.o" "../src/helloworld.c"
+'Finished building: ../src/helloworld.c'
+' '
+'Building target: test_core_apb_i2c.elf'
+'Invoking: MicroBlaze gcc linker'
+mb-gcc -Wl,-T -Wl,../src/lscript.ld -L../../test_core_apb_i2c_bsp/microblaze_0/lib -mlittle-endian -mcpu=v10.0 -mxl-soft-mul -Wl,--no-relax -Wl,--gc-sections -o "test_core_apb_i2c.elf"  ./src/helloworld.o ./src/platform.o   -Wl,--start-group,-lxil,-lgcc,-lc,--end-group
+'Finished building target: test_core_apb_i2c.elf'
+' '
+'Invoking: MicroBlaze Print Size'
+mb-size test_core_apb_i2c.elf  |tee "test_core_apb_i2c.elf.size"
+   text	   data	    bss	    dec	    hex	filename
+  95632	   1436	   3188	 100256	  187a0	test_core_apb_i2c.elf
+'Finished building: test_core_apb_i2c.elf.size'
+' '
+
+10:28:10 Build Finished (took 668ms)
+
