@@ -50,6 +50,8 @@ apb_interface apb_interface
     .tx_apb_data    (tx_apb_data    ),
     .tx_apb_addr    (tx_apb_addr    ),
     .tx_apb_data_cnt(tx_apb_data_cnt),
+    .apb_rxff_empty (apb_rxff_empty ),
+    .apb_txff_full  (apb_txff_full  ),
     .apb_rxff_rd    (apb_rxff_rd    ),
     .apb_txff_wr    (apb_txff_wr    ),
     .i_ready        (i_ready        ),

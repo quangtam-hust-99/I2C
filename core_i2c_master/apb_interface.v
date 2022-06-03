@@ -58,31 +58,32 @@ always@(posedge PCLK or negedge PRESETn)
 begin
     if(~PRESETn)
     begin
-        tx_apb_data <= 8'b0 ;
-        tx_apb_addr <= 8'b0 ;
         apb_txff_wr <= 1'b0 ;
         apb_rxff_rd <= 1'b0 ;
+        tx_apb_data <= 8'b0 ;
+        tx_apb_addr <= 8'b0 ;
         tx_ctrl     <= 8'b0 ;
         tx_div_cnt  <= 16'b0;
         PRDATA      <= 0    ;
         tx_apb_data_cnt <= 8'b0 ;
     end
-    else if(PWRITE & PSEL & PENABLE)
+    else if(PWRITE & PSEL & ~PENABLE)
     begin
         case(PADDR[4:2])
             3'd0: begin
                 tx_apb_addr <= PWDATA[7:0] ;
             end
-            3'd1: begin
-                        tx_apb_data  <= PWDATA[7:0] ;
-                        apb_txff_wr  <= 1'b1 ;
-                        apb_rxff_rd  <= 1'b0 ;            
+            3'd1: if(~apb_txff_full)
+            begin
+                tx_apb_data <= PWDATA[7:0] ;  
+                apb_txff_wr <= 1'b1 ;
+                apb_rxff_rd <= 1'b0 ;          
             end
             3'd2: begin
                 tx_apb_data_cnt <= PWDATA[7:0] ;
             end
             3'd4: begin
-                 tx_ctrl <= PWDATA[7:0] ;
+                tx_ctrl <= PWDATA[7:0] ;
              end
             3'd6: begin
                 tx_div_cnt <= PWDATA[15:0];
@@ -90,25 +91,28 @@ begin
         endcase
     end
     // read
-    else if(~PWRITE & PSEL & PENABLE)
-    begin
-        case(PADDR[4:2])
-        3'd3: begin
-                 PRDATA <= {31'd0 , rx_status[0]} ;
-             end
-        3'd5: begin
-                 PRDATA <= {24'd0 , rx_apb_data} ;
-                 apb_txff_wr  <= 1'b0  ;
-                 apb_rxff_rd  <= 1'b1  ;
-            end       
-        endcase
-    end
-    else
+     else if(~PWRITE & PSEL & ~PENABLE)
         begin
-            apb_txff_wr <= 1'b0;
-            apb_rxff_rd <= 1'b0;
-            tx_ctrl     <= 8'b0;
+            case(PADDR[4:2])
+            3'd3: begin
+                     PRDATA <= {31'd0 , rx_status[0]} ;
+                 end
+            3'd5: 
+                if(~apb_rxff_empty)
+                    begin
+                        PRDATA <= {24'd0 , rx_apb_data} ;
+                        apb_txff_wr <= 1'b0 ;
+                        apb_rxff_rd <= 1'b1 ;   
+                    end
+            endcase
         end
+     else
+          begin
+              tx_ctrl <= 8'b0;
+              apb_txff_wr <= 1'b0 ;
+              apb_rxff_rd <= 1'b0 ;
+            end
 end
+
 endmodule
  
