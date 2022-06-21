@@ -113,7 +113,7 @@ Q_next = Q;
                         end
             READ_ACK_DATA : if(sclk)     //6
                         begin 
-                            if(counter_byte > 0) 
+                            if((counter_byte > 0) && (sda_i == 0))
                                 begin    
                                     Q_next = WRITE_DATA;
                                     
