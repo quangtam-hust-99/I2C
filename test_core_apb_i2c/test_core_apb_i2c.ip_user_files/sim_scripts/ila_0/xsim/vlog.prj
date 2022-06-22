@@ -1,3 +1,0 @@
-verilog xil_defaultlib "../../../../test_core_apb_i2c.srcs/sources_1/ip/ila_0/sim/ila_0.v" --include "../../../../test_core_apb_i2c.srcs/sources_1/ip/ila_0/hdl/verilog"
-verilog xil_defaultlib "glbl.v"
-nosort
