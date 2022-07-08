@@ -59,7 +59,7 @@ int main()
     int r1_status ; // ip master
 	int r2_status ; // top ip
 /*
-    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x08F9) ; // mode_i2c , i_ready , div_cnt	master
+    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt	master
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , 0x20); // setup address + rw
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , 0x04); // setup data_cnt
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08 , 0x00); // setup data_in
@@ -74,7 +74,7 @@ int main()
     			break;
     		};
         };
-    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x8F9) ; // mode_i2c , i_ready , div_cnt
+    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , 0x00); // setup data_cnt
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08 , 0x00); // setup data_in
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , 0x20); // setup address + rw
@@ -85,7 +85,7 @@ int main()
        			break;
        		};
            };
-    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x8F9) ; // mode_i2c , i_ready , div_cnt
+    Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , 0x03); // setup data_cnt
     Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , 0x21); // setup address + rw
 
@@ -146,7 +146,7 @@ int main()
 
        	// setup register
         print("hello word \n");
-        Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x08F9); // mode_i2c , i_ready , div_cnt
+        Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x28F9); // mode_i2c , i_ready , div_cnt
        	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00, 0xA6); // address = 0x53 + rw = 0x00;
        	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10, 0x03); // data_cnt
        	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08, 0x2D); // register POWER_CTL
@@ -169,7 +169,7 @@ int main()
         Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00, 0xA6); // address = 0x53 + rw = 0x00;
        	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10, 0x00); // data_cnt
        	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08, 0x00); // reg_default
-        Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x08F9); // mode_i2c , i_ready , div_cnt
+        Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x28F9); // mode_i2c , i_ready , div_cnt
        	while(1)
        	{
        	    r_status = Xil_In32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x04);
@@ -207,7 +207,7 @@ int main()
     				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08, reg_addr); // register 0
     				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08, reg_addr + 0x01 ); // register 1
 
-    				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x08F9); // mode_i2c , i_ready , div_cnt
+    				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x28F9); // mode_i2c , i_ready , div_cnt
     				while(1)
     				{
     					r_status = Xil_In32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x04);
@@ -218,7 +218,7 @@ int main()
     				 }
     				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00, 0xA7); // address = 0x53 + rw = 0x01;
     				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10, 0x01); // data_cnt
-    				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x08F9); // mode_i2c , i_ready , div_cnt
+    				Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18, 0x28F9); // mode_i2c , i_ready , div_cnt
     				while(1)
     				{
     					r_status = Xil_In32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x04);
