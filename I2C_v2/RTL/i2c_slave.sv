@@ -6,7 +6,8 @@
         sta                                             sto
                __|________________............._______|_____      //   1 clock pulse
 
-                      
+    time_out of slave > time_out master 0.5 cycle scl       
+    if clock stretching > time_out then return IDLE (loop)
                
         
 
@@ -23,15 +24,14 @@ module i2c_slave
     input       wire            clk            ,
     input       wire            rst            ,
     input       wire    [7:0]   data_in        ,   // data from slave to master
-    input       wire    [1:0]   mode_i2c       ,    // select mode i2c if 1 -> slave , 0 -> master
-    input       wire    [6:0]   addr_device    ,  
+    input       wire    [1:0]   mode_i2c       ,   // select mode i2c if 1 -> slave , 0 -> master
+    input       wire    [6:0]   addr_device    ,   
+    input       wire            tx_data_en     ,
+    input       wire    [19:0]  time_out       ,
 
-    output      wire            si_ack         ,
-    output      reg     [7:0]   data_out       ,   // data from master to slave 
-    output      wire            si_txff_rd     ,   
-    output      wire            si_rxff_wr     ,   
-    output      reg             rw             ,   // master send bit read / write ,
-    output      reg             sta , sto          // start condition , stop condition 
+    output      wire    [7:0]   status         ,
+    output      reg     [7:0]   data_out          // data from master to slave                      
+        
 );
 
 localparam [4:0] 
@@ -49,18 +49,38 @@ reg     [7:0]   sr                  ;   // shift register
 reg     [3:0]   cnt_bit             ;   // counter bit 0 -> 7 = 1 byte
 wire            byte_done           ;   // done counter 1 byte
 wire            acc_addr            ;   // accept address device
+reg             reg_addr            ;   // delay accept address device  
+reg             ready               ;   // slave active
 
-wire            d_scl_falling       ;   // delay  scl_falling 8 cycle clock to fillter signal sda less than 1 cycle scl 
+// filter start stop condition
+wire            d_scl_i             ;   // delay  scl_i 8 cycle clock to fillter signal sta ,sto too small
 wire            d_sda_falling       ;   // delay  sda_falling 8 cycle clock to fillter signal start condition too small  
 wire            d_sda_rising        ;   // delay  sda_rising 8 cycle clock to fillter signal stop condition too small
-reg             reg_addr            ;   // delay accept address device 1 st scl 
+reg             d_sta , d_sto       ;   
+reg     [7:0]   cnt_st              ;
+
+
+// detect edge signal
 reg             reg_sda             ;
 reg             reg_scl             ;
-reg             scl_falling         ;   
+reg             scl_falling         ;  
+reg             scl_rising          ; 
 reg             sda_rising          ;
 reg             sda_falling         ;
 
+// status
+wire            tx_da_ack           ;    // interrupts transmit data 
+wire            rx_da_ack           ;    // interrupts receive data
+reg             sta , sto           ;    // start condition , stop condition 
+reg             rw                  ;    // master send bit read / write 
 
+// streching
+reg             reg_tx_da_ack       ;
+wire            tx_da_ack_rising    ;
+wire            stretch             ;   // stretchig
+reg             stc                 ;   // reg stretching
+reg             reg_stretch         ;   // delay stretching 1 clock
+reg  [19:0]     cnt_stretch         ;
 
 ///////////////////////////////////////////////////
 //// delay 8st clock 
@@ -77,63 +97,47 @@ delay_signal   delay_sda_rising(
     .rst        (rst            ),
     .signal_in  (sda_rising     ),
     .signal_out (d_sda_rising   )
-   
 );
 
-delay_signal   delay_scl_falling(
+delay_signal   delay_scl(
     .clk        (clk            ),
     .rst        (rst            ),
-    .signal_in  (scl_falling    ),
-    .signal_out (d_scl_falling  )
-   
-);
-////detected start condition and stop condition
-always_ff @(posedge clk or negedge rst)
-begin
-    if(~rst)
-        begin
-            sta <= 1'b0 ;
-            sto <= 1'b0 ;           
-        end
-    else if ( d_sda_falling && scl_i )
-        begin
-            sta <= 1'b1 ;
-        end
-    else if ( d_sda_rising && scl_i )
-        begin
-            sto <= 1'b1 ;
-        end
-    else 
-        begin
-            sta <= 1'b0 ;
-            sto <= 1'b0 ;
-        end
-end
-
+    .signal_in  (scl_i          ),
+    .signal_out (d_scl_i        )
+); 
 // detected edge of signal scl , sda
 
 always_ff @(posedge clk or negedge rst)
 begin
     if(~rst)
         begin
-            reg_scl  <= 1'b1 ;
-            reg_sda  <= 1'b1 ;
+            reg_scl         <= 1'b1 ;
+            reg_sda         <= 1'b1 ;
+            reg_tx_da_ack   <= 1'b0 ;
+            reg_stretch     <= 1'b0 ;
         end
     else
         begin
-            reg_scl <= scl_i ;
-            reg_sda <= sda_i ;
+            reg_scl         <= scl_i     ;
+            reg_sda         <= sda_i     ;
+            reg_tx_da_ack   <= tx_da_ack ;
+            reg_stretch     <= stretch   ;
         end
 end
 
 always_comb
 begin
     scl_falling = 1'b0 ;
+    scl_rising  = 1'b0 ;
     sda_falling = 1'b0 ;
     sda_rising  = 1'b0 ;
         if(reg_scl && ~scl_i)
             begin
                 scl_falling = 1'b1 ;
+            end
+        else if (~reg_scl && scl_i)
+            begin
+                scl_rising = 1'b1 ;
             end
         else if (~reg_sda && sda_i)
             begin
@@ -146,25 +150,72 @@ begin
         else 
             begin   
                 scl_falling = 1'b0 ; 
+                scl_rising  = 1'b0 ;
                 sda_rising  = 1'b0 ;
                 sda_falling = 1'b0 ;
             end
     
 end
+////detected start condition and stop condition
+always_ff @(posedge clk or negedge rst)
+begin
+    if(~rst)
+        cnt_st <= 8'b0 ;
+    else if((sda_falling && d_scl_i) || (sda_rising && d_scl_i))
+        cnt_st <= 8'b0 ;
+    else   
+        cnt_st <= cnt_st + 8'b1 ;
+end
 
+always_ff @(posedge clk or negedge rst)
+begin
+    if(~rst)
+        begin
+            sta   <= 1'b0 ;
+            sto   <= 1'b0 ; 
+            d_sta <= 1'b0 ;
+            d_sto <= 1'b0 ;         
+        end
+    else if ( sda_falling && d_scl_i )
+        d_sta <= 1'b1 ;                
+    else if (( d_sda_falling && scl_i ) && d_sta) 
+        sta <= 1'b1 ;
+    else if (sda_rising && d_scl_i)
+        d_sto <= 1'b1 ;
+    else if (( d_sda_rising && scl_i ) && d_sto)
+        sto <= 1'b1 ;
+    else if(cnt_st > 8'd10)  // need bigger number clock delay signal
+        begin
+            d_sto <= 1'b0 ;
+            d_sta <= 1'b0 ;
+        end    
+    else
+        begin
+            sta <= 1'b0 ;
+            sto <= 1'b0 ;
+        end
+end
+
+always_ff @(posedge clk or negedge rst)
+begin
+    if(~rst)
+        ready <= 1'b0;
+    else if (sta)
+        ready <= 1'b1 ;
+    else if (sto)
+        ready <= 1'b0 ;
+end
 
 // shift register 
 always_ff @(posedge clk or negedge rst)
 begin
     if(~rst)
         begin
-            sr       <= 8'd0 ;
-            reg_addr <= 1'b0 ;
+            sr  <= 8'd0 ;           
         end
-    else if(d_scl_falling)   
+    else if(scl_rising)   
         begin
-            sr       <= {sr[6:0],sda_i} ;
-            reg_addr <= acc_addr ;
+            sr <= {sr[6:0],sda_i} ;
         end
 end
 
@@ -174,32 +225,33 @@ always_ff @(posedge clk or negedge rst)
     begin
         if(~rst)
             begin
-                Q <= IDLE ;               
+                Q <= IDLE ;         
+                reg_addr <= 1'b0 ;      
             end
-        else
+        else if( scl_falling)
             begin
                 Q <= Q_next ;
+                reg_addr <= acc_addr ;
             end 
+        else if( sto || sta ||(cnt_stretch >= time_out ))
+                Q = IDLE ;
     end
 
 //// control path
 always_comb
 begin
-    Q_next = Q ;
-    if( sto ) 
-        Q_next = IDLE ;
     case(Q)
     IDLE :     //0 
         begin
-            if(sta && (mode_i2c == 2'b01))
+            if(ready && (mode_i2c == 2'b01))
                 Q_next = READ_ADDR ;
         end
-    READ_ADDR : if( scl_falling)   //1 
+    READ_ADDR :if( scl_falling)    //1 
         begin
             if(cnt_bit == 0 )
                 Q_next = ACK_ADDR ;
         end
-    ACK_ADDR : if( scl_falling)    //2 
+    ACK_ADDR :if( scl_falling)    //2 
         begin
             if(reg_addr && rw)
                 Q_next = WRITE_DATA ;
@@ -208,25 +260,25 @@ begin
             else 
                 Q_next = IDLE ; 
         end
-    READ_DATA : if( scl_falling)   //3 
+    READ_DATA :if( scl_falling)   //3 
         begin
             if(cnt_bit == 0)
                 Q_next = ACK_READ ;
         end
-    ACK_READ : if( scl_falling)    //4 
+    ACK_READ :if( scl_falling)    //4 
         begin
             if(sr[0] )        // master send NACK 
                 Q_next = IDLE ;
             else
                 Q_next = READ_DATA ;
         end
-    WRITE_DATA : if( scl_falling)   //5 
+    WRITE_DATA :if( scl_falling)   //5 
         begin
             if(cnt_bit == 0)
                 Q_next = ACK_WRITE ;
 
         end
-    ACK_WRITE : if( scl_falling)    // 6
+    ACK_WRITE :if( scl_falling)    // 6
         begin
             if(sr[0] )        // master send NACK 
                 Q_next = IDLE ;
@@ -257,14 +309,17 @@ begin
             READ_ADDR :  //1 
                 begin
                     sda_o   <= 1'b1  ;
-                    if(scl_falling  )
+                    if(scl_rising  )
                         cnt_bit <= cnt_bit - 4'd1 ;          
                     else if ( cnt_bit == 0 )
                         rw      <= sr[0] ;             
                 end
             ACK_ADDR :   // 2
                 begin 
-                    cnt_bit <= 4'd7  ;                    
+                    if(rw)
+                    cnt_bit <= 4'd7  ;         
+                    else
+                    cnt_bit <= 4'd8  ;           
                     if(reg_addr)
                         sda_o   <= 1'b0 ;
                     else 
@@ -273,14 +328,14 @@ begin
             READ_DATA :    //3
                 begin
                     sda_o    <= 1'b1 ;
-                    if(scl_falling  )
+                    if(scl_rising  )
                         cnt_bit <= cnt_bit - 4'd1 ;
                     else if (cnt_bit == 0)
                         data_out <= sr   ;
                 end
             ACK_READ :     //4
                 begin
-                    cnt_bit  <= 4'd7 ;
+                    cnt_bit  <= 4'd8 ;
                     sda_o    <= 1'b0 ;                                      
                 end
             WRITE_DATA :    //5
@@ -297,13 +352,45 @@ begin
                 end
             endcase 
         end
-
+end
+ 
+always_ff @(posedge clk or negedge rst)
+begin
+    if(~rst)
+        begin
+            stc <= 1'b0  ;           
+        end
+     else
+        begin
+             if (tx_da_ack_rising) 
+                begin
+                    stc <= 1'b1 ;
+                end
+            else if ( tx_data_en || (cnt_stretch > time_out)) 
+                begin
+                    stc <= 1'b0 ;
+                end
+        end
 end
 
-assign acc_addr         =   ( sr[7:1] == addr_device ) ;
-assign byte_done        =   ( cnt_bit == 4'd0 )        ;
-assign si_ack           =   (Q == ACK_ADDR || Q == ACK_READ || Q == ACK_WRITE ) ;
+always_ff @(posedge clk or negedge rst)
+begin
+    if(~rst)
+        cnt_stretch <= 20'd0 ;
+    else if (stretch)
+        cnt_stretch <= cnt_stretch + 20'b1 ;
+    else if((stretch && ~reg_stretch) || (~stretch && reg_stretch) || (Q ==  ACK_ADDR || Q == ACK_WRITE))
+        cnt_stretch <= 20'd0 ;  
+end
 
-assign scl_o            =   (Q ==  WRITE_DATA && rw && data_in === 8'bx ) ? 1'b0 : 1'b1 ; // streching -> hold scl low  
+assign acc_addr             =   ( sr[7:1] == addr_device )                               ;
+assign byte_done            =   ( cnt_bit == 4'd0 )                                      ;
+assign stretch              =   (stc & ~tx_da_ack)                                       ; // only stretching when write data
+assign scl_o                =   (Q ==  WRITE_DATA && rw && stretch) ? 1'b0 : 1'b1        ; // streching -> hold scl low 
+assign tx_da_ack_rising     =   tx_da_ack && ~reg_tx_da_ack                              ;
+
+assign rx_da_ack            =   ( Q == ACK_READ)                                                        ; 
+assign tx_da_ack            =   (((Q == ACK_ADDR || Q == ACK_WRITE ) && Q_next != IDLE ) && rw )        ;
+assign status               =   {2'b0 ,rw, rx_da_ack , tx_da_ack  , sto , sta }                         ;   
 
 endmodule
