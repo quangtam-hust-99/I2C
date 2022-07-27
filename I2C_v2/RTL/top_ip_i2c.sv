@@ -22,7 +22,7 @@ module top_ip_i2c
     wire    [7:0]   rx_apb_data     ;
     wire    [7:0]   tx_apb_data     ;
     wire            tx_data_en      ;
-    wire    [7:0]   tx_apb_addr     ; 
+    wire    [8:0]   tx_apb_addr     ; 
     wire    [7:0]   tx_apb_data_cnt ;
     wire    [15:0]  tx_ctrl         ;
     wire    [19:0]  time_out        ;
