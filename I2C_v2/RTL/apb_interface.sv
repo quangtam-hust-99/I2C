@@ -16,7 +16,7 @@ module apb_interface
     
     input       wire    [7:0]       rx_apb_data         ,   //// recivered data
     output      reg     [7:0]       tx_apb_data         ,   //// transmit data
-    output      reg     [7:0]       tx_apb_addr         ,   //// address + read/write
+    output      reg     [8:0]       tx_apb_addr         ,   //// address + read/write
     output      reg     [7:0]       tx_apb_data_cnt     ,   //// number byta data
     output      reg     [15:0]      tx_ctrl             ,   //// control i2c
     output      reg                 tx_data_en          ,
@@ -32,9 +32,8 @@ module apb_interface
 wire        cmd                 ;
 reg         irpt_en             ;
 wire        cmd_rising          ;
-wire        i2c_ready_rising    ;
 reg         reg_cmd             ;
-reg         reg_i2c_ready       ;
+
 
 always_ff @(posedge PCLK or negedge PRESETn)
 begin
@@ -59,7 +58,7 @@ begin
     if(~PRESETn)
     begin
         tx_apb_data <= 8'b0     ;
-        tx_apb_addr <= 8'b0     ;
+        tx_apb_addr <= 9'b0     ;
         tx_ctrl     <= 16'b0    ;
         irpt_en     <= 1'b0     ;
         tx_data_en  <= 1'b0     ;
@@ -72,7 +71,7 @@ begin
         case(PADDR[8:2])
             7'd0:
                 begin
-                    tx_apb_addr <= PWDATA[7:0] ;
+                    tx_apb_addr <= PWDATA[8:0] ;
                 end
             7'd2:
                 begin
@@ -125,19 +124,17 @@ begin
     if(~PRESETn)
         begin
             reg_cmd       <= 1'b0 ;
-            reg_i2c_ready <= 1'b0 ;
         end
     else 
         begin
             reg_cmd       <= cmd        ;
-            reg_i2c_ready <= i2c_ready  ;
         end
 end 
 always_ff @(posedge PCLK or negedge PRESETn)
 begin
     if(~PRESETn)
         PINT <= 1'b0 ;
-    else if(cmd_rising || i2c_ready_rising)
+    else if(cmd_rising)
         PINT <= 1'b1 ;
     else if(irpt_en)
         PINT <= 1'b0 ;
@@ -148,7 +145,6 @@ end
     assign PSLVERR    = 1'b0 ;
       
     assign cmd_rising = (cmd && ~reg_cmd)                       ;
-    assign i2c_ready_rising = i2c_ready && ~reg_i2c_ready       ;
     assign cmd = status[3] | status[2] | status[1] |status[0]   ; // tx , rx , sto , sta
 endmodule
  
