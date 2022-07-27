@@ -23,12 +23,14 @@ i2c_ready _____|                                   |___|
 
 
 */
+
 module i2c_master(
 
     input       wire            clk             ,
     input       wire            rst             ,
     input       wire            i2c_ready       ,
-    input       wire    [7:0]   data_addr_rw    ,
+    input       wire    [6:0]   addr            ,
+    input       wire    [1:0]   rw              ,
     input       wire    [7:0]   data_in         ,
     output      reg     [7:0]   data_out        ,
     input       wire    [7:0]   data_cnt        ,       // byte data = n <=> data_cnt = n-1
@@ -39,43 +41,42 @@ module i2c_master(
     output      wire            scl_o           ,
     
     output      wire    [7:0]   status          ,
-    input       wire    [19:0]  time_out        ,       // time_out
     input       wire    [10:0]  div_cnt         ,       // divsion frequency 
-    input       wire    [1 :0]  mode_i2c                // mode_i2c 10 -> master ; 01 -> slave
+    input       wire    [1 :0]  mode_i2c
                           
 );
 
 reg   [3:0]     Q,Q_next                  ;
 reg   [7:0]     counter, counter_byte     ;
+reg   [7:0]     data_addr_rw              ;
+reg             repeat_sta                ;
 wire            sclk,clk_en               ;
 reg             sta_sto                   ;
+
 
 // check slave hold scl low 
 
 reg   [15:0]    cnt_clk                   ;
-reg   [19:0]    cnt_stretch               ;
 wire            scl_falling               ;
 wire            scl_rising                ;
 reg             reg_scl_i                 ;
 wire            stretch                   ;
-reg             reg_stretch               ;
 
 // interrupt
 wire            tx_da_ack                 ;
 wire            rx_da_ack                 ;
-wire            start                     ;
 wire            i2c_done                  ;
 localparam  [3:0]   
-                    IDLE            = 4'd1  ,
-                    START           = 4'd2  ,
-                    ADDR            = 4'd3  ,     // tranfer address and bit read/wrtite
-                    ADDR_ACK        = 4'd4  ,     // ACK address
-                    WRITE_DATA      = 4'd5  ,     // data from master to slave
-                    ACK_WRITE       = 4'd6  ,     // ACK data from master to slave
-                    READ_DATA       = 4'd7  ,     // data from slave to master
-                    ACK_READ        = 4'd8  ,     // ACK data from slave to master
-                    SR              = 4'd9  ,     // repeat start
-                    STOP            = 4'd10 ;
+                    IDLE            = 4'd1 ,
+                    START           = 4'd2 ,
+                    ADDR            = 4'd3 ,     // tranfer address and bit read/wrtite
+                    ADDR_ACK        = 4'd4 ,     // ACK address
+                    WRITE_DATA      = 4'd5 ,     // data from master to slave
+                    READ_ACK_DATA   = 4'd6 ,     // ACK data from master to slave
+                    READ_DATA       = 4'd7 ,     // data from slave to master
+                    WRITE_ACK_DATA  = 4'd8 ,     // ACK data from slave to master
+                    SR              = 4'd9 ,     // repeat start
+                    STOP            = 4'd10;
                     
 div_clk  div_clk(
     .clk        (clk        ),
@@ -91,34 +92,21 @@ always_ff @(posedge clk or negedge rst)
 begin
     if(~rst)
         cnt_clk <= 16'b0;
-    else if(scl_falling || scl_rising || Q == IDLE || Q==START || Q==ADDR || Q==STOP)
-        cnt_clk <= 16'b0 ;
-    else if (i2c_ready)
-        cnt_clk <= cnt_clk + 1 ;
+    else 
+    begin
+        if(scl_falling || scl_rising || Q == IDLE || Q==START || Q==ADDR || Q==STOP || Q==SR)
+            cnt_clk <= 16'b0 ;
+        else if (i2c_ready)
+            cnt_clk <= cnt_clk + 1 ;
+    end
 end
 
 always_ff @(posedge clk or negedge rst)
 begin
     if(~rst)
-        cnt_stretch <= 20'd0 ;
-    else if(stretch)
-        cnt_stretch <= cnt_stretch + 20'b1 ;   
-    else if ((stretch && ~ reg_stretch )||(~stretch && reg_stretch ))   // edge rising and falling stretching
-        cnt_stretch <= 20'd0 ; 
-end
-
-always_ff @(posedge clk or negedge rst)
-begin
-    if(~rst)
-        begin
-        reg_stretch <= 1'b0 ;
-        reg_scl_i   <= 1'b0 ;
-        end
+        reg_scl_i <= 1'b0 ;
     else
-        begin
-        reg_stretch <= stretch ;
-        reg_scl_i   <= scl_i   ;
-        end
+        reg_scl_i <= scl_i ;
 end
 ///////////////////////////////////////////////
 // next state
@@ -140,8 +128,6 @@ end
 
 always_comb
 begin
-    if(cnt_stretch >= time_out)       
-    Q_next = IDLE ;
     case(Q)
             IDLE:  
                     begin
@@ -167,11 +153,11 @@ begin
                     end
             ADDR_ACK:    //4
                     begin
-                        if((data_addr_rw[0]==0) && (sda_i ==0)) 
+                        if((data_addr_rw[0] == 1'b0) && (sda_i == 1'b0)) 
                             begin
                                 Q_next = WRITE_DATA; 
                             end
-                        else if ((data_addr_rw[0]==1) && (sda_i ==0)) 
+                        else if ((data_addr_rw[0] == 1'b1) && (sda_i == 1'b0)) 
                             begin
                                 Q_next = READ_DATA;
                             end
@@ -182,18 +168,25 @@ begin
                     end            
             WRITE_DATA :       //5
                         begin 
-                            if(counter == 0)
+                            if(counter == 8'd0)
                                 begin
-                                    Q_next = ACK_WRITE;
+                                    Q_next = READ_ACK_DATA;
                                 end                                
                         end
-            ACK_WRITE :     //6
+            READ_ACK_DATA :     //6
                         begin 
                             if((counter_byte > 0) && ( sda_i == 0 ))
-                                begin    
-                                    Q_next = WRITE_DATA;                                   
-                                end
-                            else 
+                            begin
+                                if (rw == 2'b10)
+                                    begin
+                                        Q_next = SR ;
+                                    end
+                                else
+                                    begin    
+                                        Q_next = WRITE_DATA;                                   
+                                    end
+                            end 
+                            else
                                 begin
                                     Q_next = STOP ;
                                 end 
@@ -202,10 +195,10 @@ begin
                         begin 
                             if(counter == 0)
                                 begin
-                                    Q_next = ACK_READ;
+                                    Q_next = WRITE_ACK_DATA;
                                 end
                         end
-            ACK_READ :     //8
+            WRITE_ACK_DATA :     //8
                         begin 
                             if(counter_byte > 0) 
                                 begin  
@@ -215,6 +208,10 @@ begin
                                 begin
                                     Q_next = STOP ;
                                 end
+                        end
+            SR :
+                        begin
+                            Q_next = START ;
                         end
             STOP :      //10
                         begin 
@@ -229,31 +226,46 @@ end
 // data path
 
 always_ff @(posedge clk )
-      case(Q)
+begin
+    if(~rst)
+    begin
+        sda_o               <= 1'b1     ;
+        counter             <= 8'b0     ;
+        counter_byte        <= 8'b0     ;
+        repeat_sta          <= 1'b0     ;
+        data_addr_rw        <= 8'b0     ;
+    end
+    else
+        case(Q)
                     IDLE: begin
-                            sda_o  <= 1'b1  ;
-                            counter_byte <= 0;
-                            counter <= 7  ;
+                            sda_o           <= 1'b1     ;
+                            counter_byte    <= 8'b0     ;
+                            counter         <= 8'd7     ;
                           end
                             
                     START :                     
                         begin 
-                            counter <= 7             ;
-                            counter_byte <= data_cnt ;
-                            sda_o  <= 1'b0 ;
+                            counter         <= 8'd7     ;
+                            counter_byte    <= data_cnt ;
+                            sda_o           <= 1'b0     ;
+                            if(repeat_sta)
+                                data_addr_rw  <= {addr , rw[1]} ;
+                            else
+                                data_addr_rw  <= {addr , rw[0]} ;
                         end
                     ADDR : begin
                         if(sclk) 
                         begin 
-                            counter <= counter-1 ;                            
-                        end
-                        sda_o <= data_addr_rw[counter];
+                            counter <= counter - 1      ;                            
+                        end                     
+                        sda_o <= data_addr_rw[counter]  ;
+                        repeat_sta <= 1'b0 ;
                         end
                     ADDR_ACK:begin
                         if(sclk)
                         begin
-                            counter <= 7             ;
-                            counter_byte <= data_cnt ;                            
+                            counter      <= 8'd7        ;
+                            counter_byte <= data_cnt    ;                            
                         end
                         sda_o <= 1'b1 ;
                         end 
@@ -268,20 +280,20 @@ always_ff @(posedge clk )
                     READ_DATA:begin
                        if(sclk)  
                         begin 
-                            counter <= counter -1    ;
+                            counter <= counter - 1    ;
                         end
                         sda_o <= 1'b1;
-                        data_out[counter] <= sda_i;
+                        data_out[counter] <= sda_i    ;
                         end
-                    ACK_READ :begin
+                    WRITE_ACK_DATA :begin
                         if(sclk)  
                             begin 
-                                counter <= 7 ;
+                                counter <= 8'd7 ;
                                 if((counter_byte > data_cnt) || (counter < 0)) begin
-                                    counter_byte <= data_cnt        ;                                   
+                                    counter_byte <= data_cnt         ;                                   
                                     end
                                 else begin
-                                    counter_byte <= counter_byte -1 ;                                   
+                                    counter_byte <= counter_byte - 1 ;                                   
                                     end
                             end
                         if(counter_byte > 0)
@@ -289,11 +301,11 @@ always_ff @(posedge clk )
                             else
                             sda_o  <= 1'b1 ;
                         end
-                    ACK_WRITE :
+                    READ_ACK_DATA :
                     begin
                         if(sclk)  
                         begin
-                            counter <= 7;
+                            counter <= 8'd7 ;
                             if((counter_byte > data_cnt) || (counter < 0))
                                 counter_byte <= data_cnt        ;
                             else
@@ -301,16 +313,19 @@ always_ff @(posedge clk )
                         end
                         sda_o <= 1'b1 ;
                         end
+                    SR:
+                    begin
+                        sda_o       <= 1'b1 ;
+                        repeat_sta  <= 1'b1 ;
+                    end
                     STOP :  
                         
                         begin
-                            counter_byte <= data_cnt ;
-                            sda_o <= 1'b0;
+                            counter_byte    <= data_cnt     ;
+                            sda_o           <= 1'b0         ;
                         end
-                endcase   
-                
-//// wait signal read from fifo
-                     
+        endcase                  
+end                  
 // gen signal scl 
 always_ff @(posedge clk or negedge rst)
 begin
@@ -328,15 +343,14 @@ begin
         end
 end
 
-    assign  scl_o     = (Q == IDLE )  ? 1'b1 : ( Q == START ? ~sta_sto : sta_sto ) ;
-    assign  i2c_done  = (Q == STOP )                                               ;
-    assign  rx_da_ack = (Q == ACK_READ )                                           ;
-    assign  tx_da_ack = (Q == ACK_WRITE  || Q == ADDR_ACK) && Q_next != STOP       ;
-    assign  start     = (Q == IDLE )                                               ; // same i2c_ready
-    assign  status    = { 4'b0  , rx_da_ack , tx_da_ack  , i2c_done , start }      ;
+    assign  scl_o           = (Q == IDLE ) ? 1'b1 : ( Q == START ? ~sta_sto : sta_sto )      ;
+    assign  i2c_done        =  Q == STOP                                                                ;
+    assign  rx_da_ack       = (Q == WRITE_ACK_DATA  )                                                   ;
+    assign  tx_da_ack       = (Q == READ_ACK_DATA  || Q == ADDR_ACK) && Q_next != STOP                  ;
+    assign  start           = (Q == IDLE || Q == SR )                                                   ;                                                               ; // same i2c_ready
+    assign  status          = { 4'b0  , rx_da_ack , tx_da_ack  , i2c_done ,1'b0}                        ;
     
     assign  scl_falling =  ~scl_i &&  reg_scl_i      ;    // detected edge scl 
     assign  scl_rising  =   scl_i && ~reg_scl_i      ;
-    assign  stretch     = (cnt_clk > div_cnt/2 +1 ) ? ((cnt_stretch > time_out) ? 1'b0 : 1'b1) : 1'b0 ;   // counter to edge scl if cnt_bit more than div_cnt/2+1 then there haven't edge scl => scl is low 
-
+    assign  stretch     = (cnt_clk > div_cnt/2 +1 )  ;    // counter to edge scl if cnt_bit more than div_cnt/2+1 then there haven't edge scl => scl is low 
 endmodule            

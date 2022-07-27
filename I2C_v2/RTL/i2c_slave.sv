@@ -267,9 +267,6 @@ begin
         end
     ACK_READ :if( scl_falling)    //4 
         begin
-            if(sr[0] )        // master send NACK 
-                Q_next = IDLE ;
-            else
                 Q_next = READ_DATA ;
         end
     WRITE_DATA :if( scl_falling)   //5 
