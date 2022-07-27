@@ -58,9 +58,9 @@ void init_interrupt(void);
 u32 reg_addr  ;
 u32 reg_data ;
 int status ;
-int mem_data[9] = { 2,4,8,10,11,12,13};
+int mem_data[9] = { 0,4,8,10,11,12,0};
 int mem_data_cnt[10] ={0x00 , 0x03 };
-int mem_addr[10]={0x20 , 0x21 };
+int mem_addr[10]={0x40 , 0x42 };
 
 
 int counter	=0 ; // for interrupt
@@ -80,7 +80,7 @@ int main()
     return 0;
 }
 // master
-/*
+
 void init_interrupt(void)
 {
 
@@ -88,7 +88,7 @@ void init_interrupt(void)
 
 	// initialization data
 	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt	master
-	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , 0x20); // setup address + rw
+	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , 0x40); // setup address + rw
 	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , 0x04); // setup data_cnt
 
     microblaze_register_handler((XInterruptHandler) myISR, (void *) 0);
@@ -98,29 +98,27 @@ void myISR(void) {
 	status = Xil_In32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x04) ; // check interrupts
 	switch(status)
 	    	{
-	    	case 0x01 :
-	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt	master
-	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , addr_device); // setup address + rw
-	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , data_cnt); // setup data_cnt
-	    		break;
-	    	case 0x02 :
+	    	case 0x02 : // i2c_done
 	    		data_cnt = mem_data_cnt[pt_data_cnt] ;
 	    		addr_device = mem_addr[pt_addr] ;
 	    		pt_addr ++ ;
 	    		pt_data_cnt ++ ;
+	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x18 , 0x28F9) ; // mode_i2c , i_ready , div_cnt	master
+	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x00 , addr_device); // setup address + rw
+	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x10 , data_cnt); // setup data_cnt
 	    		break;
-	    	case 0x04 :
+	    	case 0x04 : // tx_da_ack
 	    		Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x08 , mem_data[pt]);	// setup data_in
 	    		pt ++ ;
 	    	    break;
-	    	case 0x08 :
+	    	case 0x08 : // rx_da_ack
 	    		Xil_In32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x0c) ; // data_out
 	    		break;
 	    	}
 	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x20 , 0x01); // clear interrupt
 
 }
-*/
+/*
 // slave
 void init_interrupt(void)
 {
@@ -180,5 +178,5 @@ void myISR(void) {
 	Xil_Out32(XPAR_TOP_IP_I2C_0_BASEADDR + 0x20 , 0x01); // clear interrupt
 
 }
-
+*/
 
