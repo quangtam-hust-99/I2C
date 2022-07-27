@@ -7,7 +7,7 @@ module core_i2c(
     // apb interface  
     input   wire                i2c_ready           ,
     output  reg     [7:0]       status              ,
-    input   wire    [7:0]       tx_apb_addr         ,   
+    input   wire    [8:0]       tx_apb_addr         ,   
     input   wire    [7:0]       tx_apb_data_cnt     ,
     input   wire    [15:0]      tx_ctrl             ,   
     input   reg     [7:0]       tx_apb_data         , 
@@ -25,7 +25,7 @@ module core_i2c(
 
 reg  [6:0]   addr_device     ;
 reg  [7:0]   data_cnt        ;
-reg  [7:0]   data_addr_rw    ;
+reg  [8:0]   data_addr_rw    ;
 wire [7:0]   data_out_si     ;
 reg  [7:0]   data_in_si      ;
 wire [7:0]   data_out_mi     ;
@@ -44,7 +44,8 @@ reg          sda_si ,scl_si  ;
             .clk            (clk                ),
             .rst            (rst                ),
             .i2c_ready      (i2c_ready          ),
-            .data_addr_rw   (data_addr_rw       ),
+            .addr           (data_addr_rw[8:2]  ),
+            .rw             (data_addr_rw[1:0]  ),
             .data_in        (data_in_mi         ),
             .data_out       (data_out_mi        ),
             .data_cnt       (tx_apb_data_cnt    ),
@@ -81,7 +82,7 @@ reg          sda_si ,scl_si  ;
     begin
         // default 
     addr_device     =   7'd0    ;
-    data_addr_rw    =   8'd0    ;
+    data_addr_rw    =   9'd0    ;
     data_cnt        =   8'd0    ;
     status          =   8'b0    ;
     data_in_mi      =   8'b0    ;
@@ -99,7 +100,7 @@ reg          sda_si ,scl_si  ;
                 scl_o           =   scl_so              ;
                 sda_si          =   sda_i               ;
                 scl_si          =   scl_i               ;
-                addr_device     =   tx_apb_addr[7:1]    ;
+                addr_device     =   tx_apb_addr[8:2]    ;
                 rx_apb_data     =   data_out_si         ;
                 data_in_si      =   tx_apb_data         ;
                 status          =   s_status            ;
@@ -121,7 +122,7 @@ reg          sda_si ,scl_si  ;
             begin 
                 status          =   8'b0    ;                            
                 addr_device     =   7'd0    ;
-                data_addr_rw    =   8'd0    ;
+                data_addr_rw    =   9'd0    ;
                 data_cnt        =   8'd0    ;
                 data_in_mi      =   8'b0    ;
                 data_in_si      =   8'b0    ;
